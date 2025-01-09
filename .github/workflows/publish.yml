@@ -37,6 +37,7 @@ jobs:
               run: |
                   sudo apt-get update -y
                   sudo apt-get install -y python3
+                  sudo apt-get install -y xmlstarlet
                   chmod +x .github/scripts/increment_version.py
 
             - name: Determine Version with GitVersion
@@ -71,11 +72,6 @@ jobs:
                   git push
               env:
                   GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-                  
-            - name: Grab commit SHA
-              id: commitinfo
-              run: |
-                  echo "commit_sha=$(git rev-parse HEAD)" >> "$GITHUB_OUTPUT"
 
             - name: Set Up .NET (v9)
               uses: actions/setup-dotnet@v4
@@ -100,17 +96,6 @@ jobs:
                     -r win-x64 \
                     -o ./publish/windows \
                     -f net9.0
-        
-            - name: Upload Windows Artifact
-              uses: actions/upload-artifact@v4
-              with:
-                  name: Updater-Windows
-                  path: ./publish/windows
-            
-            - name: Install xmlstarlet
-              run: |
-                  sudo apt-get update -y
-                  sudo apt-get install -y xmlstarlet
             
             - name: Run GitVersion
               id: gitversion2
