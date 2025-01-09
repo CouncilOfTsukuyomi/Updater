@@ -20,6 +20,7 @@ public class MainWindowViewModel : ViewModelBase
     private readonly IDownloadAndInstallUpdates _downloadAndInstallUpdates;
     private readonly IAppArguments _appArguments;
     private readonly IConfigurationService _configurationService;
+    private readonly IInstallUpdate _installUpdate;
 
     private readonly Random _random = new();
 
@@ -89,7 +90,7 @@ public class MainWindowViewModel : ViewModelBase
         IUpdateService updateService,
         IDownloadAndInstallUpdates downloadAndInstallUpdates,
         IAppArguments appArguments,
-        IConfigurationService configurationService)
+        IConfigurationService configurationService, IInstallUpdate installUpdate)
     {
         _logger.Debug("Constructing MainWindowViewModel...");
 
@@ -98,6 +99,7 @@ public class MainWindowViewModel : ViewModelBase
         _downloadAndInstallUpdates = downloadAndInstallUpdates;
         _appArguments = appArguments;
         _configurationService = configurationService;
+        _installUpdate = installUpdate;
 
         // Toggle Sentry logging based on config
         if ((bool)_configurationService.ReturnConfigValue(c => c.Common.EnableSentry))
@@ -151,6 +153,13 @@ public class MainWindowViewModel : ViewModelBase
             StatusText = "Download Complete!";
             await Task.Delay(TimeSpan.FromSeconds(2));
             StatusText = "Installing Updating...";
+            var installed = await _installUpdate.StartInstallationAsync(downloadPath);
+            if (installed)
+            {
+                StatusText = "Installation Complete!";
+                await Task.Delay(TimeSpan.FromSeconds(2));
+                Environment.Exit(0);
+            }
         }
         catch (Exception ex)
         {
