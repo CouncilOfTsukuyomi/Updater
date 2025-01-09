@@ -42,27 +42,32 @@ jobs:
 
             - name: Install GitVersion
               run: dotnet tool install --global GitVersion.Tool
+            
+            - name: Decide GitVersion Bump
+              shell: bash
+              run: |
+                  if [ "${{ github.event.inputs.releaseType }}" == "major" ]; then
+                    echo "GitVersion_BumpMajor=true" >> $GITHUB_ENV
+                  elif [ "${{ github.event.inputs.releaseType }}" == "minor" ]; then
+                    echo "GitVersion_BumpMinor=true" >> $GITHUB_ENV
+                  else
+                    echo "GitVersion_BumpPatch=true" >> $GITHUB_ENV
+                  fi
 
             - name: Run GitVersion
               id: gitversion
               shell: bash
               run: |
-                  # Conditionally set GitVersion overrides based on the user-chosen releaseType.
-                  if [ "${{ github.event.inputs.releaseType }}" == "major" ]; then
-                    export GitVersion_BumpMajor=true
-                  elif [ "${{ github.event.inputs.releaseType }}" == "minor" ]; then
-                    export GitVersion_BumpMinor=true
-                  else
-                    export GitVersion_BumpPatch=true
-                  fi
-                  
-                  # Run GitVersion and capture JSON output
                   OUTPUT=$(dotnet-gitversion /output json)
                   echo "version=$(echo "$OUTPUT" | jq -r '.MajorMinorPatch')" >> $GITHUB_OUTPUT
                   echo "full_semver=$(echo "$OUTPUT" | jq -r '.FullSemVer')" >> $GITHUB_OUTPUT
-                  
+
             - name: Debug GitVersion Env
-              run: env | grep GitVersion
+              shell: bash
+              run: |
+                  # This prints any GitVersion variables if they exist,
+                  # but won't fail the job if none are found.
+                  env | grep GitVersion || echo "No GitVersion_* variables found."
 
             - name: Update `Directory.Build.props`
               run: |
