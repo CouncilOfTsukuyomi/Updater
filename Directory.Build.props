@@ -3,9 +3,9 @@
         <UserSecretsId>PenumbraModForwarderSolutionSecrets</UserSecretsId>
 
         <!-- Version components -->
-        <MajorVersion>1</MajorVersion>
-        <MinorVersion>0</MinorVersion>
-        <PatchVersion>0</PatchVersion>
+        <MajorVersion></MajorVersion>
+        <MinorVersion></MinorVersion>
+        <PatchVersion></PatchVersion>
 
         <!-- Combined version properties -->
         <VersionPrefix>$(MajorVersion).$(MinorVersion).$(PatchVersion)</VersionPrefix>
