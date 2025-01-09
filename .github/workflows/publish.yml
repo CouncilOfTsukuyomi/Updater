@@ -33,31 +33,54 @@ jobs:
                   git config user.name "github-actions[bot]"
                   git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
 
+            # We keep the "Setup GitVersion" step name, but install xmlstarlet for manual versioning
             - name: Setup GitVersion
-              uses: gittools/actions/gitversion/setup@v3.1.1
-              with:
-                  versionSpec: '6.0.x'
+              run: |
+                  sudo apt-get update -y
+                  sudo apt-get install -y xmlstarlet
 
+            # We keep the "Determine Version with GitVersion" step name, but do our manual version read/increment
             - name: Determine Version with GitVersion
               id: gitversion
-              uses: gittools/actions/gitversion/execute@v3.1.1
-              with:
-                  updateAssemblyInfo: false
-                  overrideConfig: |
-                      mode: ContinuousDeployment
-                      increment: ${{ github.event.inputs.releaseType }}
-                  disableCache: false
-                  disableNormalization: false
-                  disableShallowCloneCheck: true
-                  useConfigFile: false
-
+              run: |
+                  # Read current version from Directory.Build.props
+                  CURRENT_MAJOR=$(xmlstarlet sel -t -v "//Project/PropertyGroup/MajorVersion" Directory.Build.props)
+                  CURRENT_MINOR=$(xmlstarlet sel -t -v "//Project/PropertyGroup/MinorVersion" Directory.Build.props)
+                  CURRENT_PATCH=$(xmlstarlet sel -t -v "//Project/PropertyGroup/PatchVersion" Directory.Build.props)
+                  
+                  # Determine increment type from input
+                  RELEASE_TYPE="${{ github.event.inputs.releaseType }}"
+                  if [ "$RELEASE_TYPE" = "patch" ]; then
+                    ((CURRENT_PATCH++))
+                  elif [ "$RELEASE_TYPE" = "minor" ]; then
+                    ((CURRENT_MINOR++))
+                    CURRENT_PATCH=0
+                  elif [ "$RELEASE_TYPE" = "major" ]; then
+                    ((CURRENT_MAJOR++))
+                    CURRENT_MINOR=0
+                    CURRENT_PATCH=0
+                  fi
+                  
+                  NEW_VERSION="${CURRENT_MAJOR}.${CURRENT_MINOR}.${CURRENT_PATCH}"
+                  
+                  # Simulate GitVersion's environment variables
+                  # We'll store them in outputs so the next steps can do something similar
+                  echo "::set-output name=fullsemver::$NEW_VERSION"
+                  echo "::set-output name=major::$CURRENT_MAJOR"
+                  echo "::set-output name=minor::$CURRENT_MINOR"
+                  echo "::set-output name=patch::$CURRENT_PATCH"
+                  
+                  # For tag comparison, pick up the latest annotated tag if it exists
+                  PREVIOUS_TAG=$(git describe --tags --abbrev=0 2>/dev/null || echo "")
+                  echo "::set-output name=previous_tag::$PREVIOUS_TAG"
+        
             - name: Debug GitVersion Output
               run: |
                   echo "FullSemVer: ${{ steps.gitversion.outputs.fullsemver }}"
                   echo "Major: ${{ steps.gitversion.outputs.major }}"
                   echo "Minor: ${{ steps.gitversion.outputs.minor }}"
                   echo "Patch: ${{ steps.gitversion.outputs.patch }}"
-
+        
             - name: Update `Directory.Build.props`
               run: |
                   MAJOR="${{ steps.gitversion.outputs.major }}"
@@ -66,7 +89,7 @@ jobs:
                   sed -i "s|<MajorVersion>.*</MajorVersion>|<MajorVersion>${MAJOR}</MajorVersion>|" Directory.Build.props
                   sed -i "s|<MinorVersion>.*</MinorVersion>|<MinorVersion>${MINOR}</MinorVersion>|" Directory.Build.props
                   sed -i "s|<PatchVersion>.*</PatchVersion>|<PatchVersion>${PATCH}</PatchVersion>|" Directory.Build.props
-
+            
             - name: Commit Updated `Directory.Build.props`
               run: |
                   git add Directory.Build.props
@@ -114,21 +137,26 @@ jobs:
               with:
                   fetch-depth: 0
                   submodules: recursive
-
+    
+            # Keep the "Install GitVersion" step name, but do a harmless echo
             - name: Install GitVersion
-              run: dotnet tool install --global GitVersion.Tool
-
+              run: echo "Skipping real GitVersion install (manual versioning is used)."
+    
+            # Keep "Run GitVersion" step name, but just copy the outputs from the prior job
             - name: Run GitVersion
               id: gitversion
               shell: bash
               run: |
-                  OUTPUT=$(dotnet-gitversion /output json)
-                  FULL_SEMVER=$(echo "$OUTPUT" | jq -r '.FullSemVer')
-                  MAJORMINORPATCH=$(echo "$OUTPUT" | jq -r '.MajorMinorPatch')
-                  PREVIOUS_TAG=$(echo "$OUTPUT" | jq -r '.PreviousTag // ""')
+                  # We'll pull the same outputs from the other job by checking what's currently in the repo
+                  # or simply do minimal logic. Let's read them from Directory.Build.props again here:
+                  CURRENT_MAJOR=$(xmlstarlet sel -t -v "//Project/PropertyGroup/MajorVersion" Directory.Build.props)
+                  CURRENT_MINOR=$(xmlstarlet sel -t -v "//Project/PropertyGroup/MinorVersion" Directory.Build.props)
+                  CURRENT_PATCH=$(xmlstarlet sel -t -v "//Project/PropertyGroup/PatchVersion" Directory.Build.props)
+                  FULL_SEMVER="${CURRENT_MAJOR}.${CURRENT_MINOR}.${CURRENT_PATCH}"
+                  PREVIOUS_TAG=$(git describe --tags --abbrev=0 2>/dev/null || echo "")
                   
                   echo "FULL_SEMVER=$FULL_SEMVER" >> $GITHUB_ENV
-                  echo "MAJORMINORPATCH=$MAJORMINORPATCH" >> $GITHUB_ENV
+                  echo "MAJORMINORPATCH=$FULL_SEMVER" >> $GITHUB_ENV
                   echo "PREVIOUS_TAG=$PREVIOUS_TAG" >> $GITHUB_ENV
 
             - name: Get Latest Release from GitHub
