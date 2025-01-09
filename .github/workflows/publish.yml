@@ -102,7 +102,7 @@ jobs:
                   PREVIOUS_TAG=$(echo "$OUTPUT" | jq -r '.PreviousTag // ""')
                   
                   echo "FULL_SEMVER=$FULL_SEMVER" >> $GITHUB_ENV
-                  echo "MAJORMINORPATCH=$MAJORMINORPATCH" >> GITHUB_ENV
+                  echo "MAJORMINORPATCH=$MAJORMINORPATCH" >> $GITHUB_ENV
                   echo "PREVIOUS_TAG=$PREVIOUS_TAG" >> $GITHUB_ENV
 
             - name: Generate Release Notes
@@ -129,8 +129,8 @@ jobs:
               id: create_release
               uses: actions/create-release@v1
               with:
-                  tag_name: ${{ env.MAJORMINORPATCH }}
-                  release_name: Release ${{ env.MAJORMINORPATCH }}
+                  tag_name: v${{ env.MAJORMINORPATCH }}
+                  release_name: Release v${{ env.MAJORMINORPATCH }}
                   body: |
                       Changes (since last release):
                       ${{ env.COMMITS }}
