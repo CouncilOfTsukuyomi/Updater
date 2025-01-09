@@ -33,66 +33,20 @@ jobs:
                   git config user.name "github-actions[bot]"
                   git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
 
-            # We keep the "Setup GitVersion" step name, but install xmlstarlet for manual versioning
             - name: Setup GitVersion
               run: |
                   sudo apt-get update -y
-                  sudo apt-get install -y xmlstarlet
+                  sudo apt-get install -y python3
+                  chmod +x .github/scripts/increment_version.py
 
             - name: Determine Version with GitVersion
               id: gitversion
               run: |
-                  # Fail if the file doesn't exist
-                  if [ ! -f Directory.Build.props ]; then
-                    echo "Error: Directory.Build.props not found."
-                    exit 1
-                  fi
-                  
-                  # Read <MajorVersion>, <MinorVersion>, <PatchVersion> from Directory.Build.props
-                  CURRENT_MAJOR=$(xmlstarlet sel -t -v "//Project/PropertyGroup/MajorVersion" Directory.Build.props)
-                  if [ -z "$CURRENT_MAJOR" ]; then
-                    echo "Error: <MajorVersion> not found in Directory.Build.props"
-                    exit 1
-                  fi
-                  
-                  CURRENT_MINOR=$(xmlstarlet sel -t -v "//Project/PropertyGroup/MinorVersion" Directory.Build.props)
-                  if [ -z "$CURRENT_MINOR" ]; then
-                    echo "Error: <MinorVersion> not found in Directory.Build.props"
-                    exit 1
-                  fi
-                  
-                  CURRENT_PATCH=$(xmlstarlet sel -t -v "//Project/PropertyGroup/PatchVersion" Directory.Build.props)
-                  if [ -z "$CURRENT_PATCH" ]; then
-                    echo "Error: <PatchVersion> not found in Directory.Build.props"
-                    exit 1
-                  fi
-                  
-                  # Read increment type from your workflow input
-                  RELEASE_TYPE="${{ github.event.inputs.releaseType }}"
-                  
-                  # Increment your version as requested
-                  if [ "$RELEASE_TYPE" = "patch" ]; then
-                    ((CURRENT_PATCH++))
-                  elif [ "$RELEASE_TYPE" = "minor" ]; then
-                    ((CURRENT_MINOR++))
-                    CURRENT_PATCH=0
-                  elif [ "$RELEASE_TYPE" = "major" ]; then
-                    ((CURRENT_MAJOR++))
-                    CURRENT_MINOR=0
-                    CURRENT_PATCH=0
-                  fi
-                  
-                  NEW_VERSION="${CURRENT_MAJOR}.${CURRENT_MINOR}.${CURRENT_PATCH}"
-                  
-                  # Simulate GitVersion outputs (available to subsequent steps)
-                  echo "::set-output name=fullsemver::$NEW_VERSION"
-                  echo "::set-output name=major::$CURRENT_MAJOR"
-                  echo "::set-output name=minor::$CURRENT_MINOR"
-                  echo "::set-output name=patch::$CURRENT_PATCH"
-                  
-                  # For tag comparison, pick up the latest annotated tag if it exists
-                  PREVIOUS_TAG=$(git describe --tags --abbrev=0 2>/dev/null || echo "")
-                  echo "::set-output name=previous_tag::$PREVIOUS_TAG"
+                  # Provide the selected release type (patch, minor, major) to the Python script
+                  RELEASE_TYPE="${{ github.event.inputs.releaseType }}" \
+                    .github/scripts/increment_version.py
+              env:
+                  RELEASE_TYPE: ${{ github.event.inputs.releaseType }}
 
             - name: Debug GitVersion Output
               run: |
