@@ -95,34 +95,48 @@ jobs:
               shell: bash
               run: |
                   OUTPUT=$(dotnet-gitversion /output json)
+                  
+                  # Grab “FullSemVer” for the tag name
+                  FULL_SEMVER=$(echo "$OUTPUT" | jq -r '.FullSemVer')
+                  
+                  # Grab “PreviousTag” if it exists (the JSON you showed does NOT contain it by default).
+                  # If it’s missing or null, we set a default or empty string.
+                  PREVIOUS_TAG=$(echo "$OUTPUT" | jq -r '.PreviousTag // ""')
+                  
+                  echo "FULL_SEMVER=$FULL_SEMVER" >> $GITHUB_ENV
+                  echo "PREVIOUS_TAG=$PREVIOUS_TAG" >> $GITHUB_ENV
 
             - name: Generate Release Notes
               id: gen-notes
+              shell: bash
               run: |
-                  PREVIOUS_TAG="${{ steps.gitversion.outputs.PreviousTag }}"
-                  if [ -z "$PREVIOUS_TAG" ]; then
+                  # Fall back if there's no previous tag
+                  if [ -z "${{ env.PREVIOUS_TAG }}" ]; then
                     # If there's no previous tag, fall back to the first commit
                     PREVIOUS_TAG=$(git rev-list --max-parents=0 HEAD)
+                  else
+                    PREVIOUS_TAG="${{ env.PREVIOUS_TAG }}"
                   fi
                   
-                  # Gather commit messages from the previous tag to HEAD
-                  # Then filter out the line with 'chore: update version to'
-                  COMMITS=$(git log "$PREVIOUS_TAG..HEAD" --pretty=format:'- %s (%h)' | grep -v "chore: update version to")
+                  # Gather commit messages from PREVIOUS_TAG to HEAD;
+                  # filter out “chore: update version to”
+                  COMMITS=$(git log "${PREVIOUS_TAG}..HEAD" --pretty=format:'- %s (%h)' | grep -v "chore: update version to")
                   
                   echo "COMMITS<<EOF" >> $GITHUB_ENV
                   echo "$COMMITS" >> $GITHUB_ENV
                   echo "EOF" >> $GITHUB_ENV
 
             - name: Create GitHub Release
+              id: create_release
               uses: actions/create-release@v1
               with:
-                  tag_name: ${{ steps.gitversion.outputs.FullSemVer }}
-                  release_name: Release ${{ steps.gitversion.outputs.FullSemVer }}
+                  tag_name: ${{ env.FULL_SEMVER }}
+                  release_name: Release ${{ env.FULL_SEMVER }}
                   body: |
                       Changes (since last release):
                       ${{ env.COMMITS }}
                   draft: false
-                  prerelease: ${{ steps.gitversion.outputs.PreReleaseLabel != '' }}
+                  prerelease: false
               env:
                   GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
                   
