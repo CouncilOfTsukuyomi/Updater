@@ -204,12 +204,6 @@ jobs:
                   prerelease: false
               env:
                   GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-            
-            - name: Download Windows Artifact
-              uses: actions/download-artifact@v4
-              with:
-                  name: Updater-Windows
-                  path: ./publish/windows
         
             - name: Zip Windows build
               run: |
