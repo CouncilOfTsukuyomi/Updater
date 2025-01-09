@@ -22,71 +22,55 @@ jobs:
     version-update-and-build:
         runs-on: ubuntu-latest
         steps:
-            - uses: actions/create-github-app-token@v1
-              id: app-token
-              with:
-                  app-id: ${{ vars.APP_ID }}
-                  private-key: ${{ secrets.APP_PRIVATE_KEY }}
-
             - name: Checkout Code
               uses: actions/checkout@v4
               with:
                   fetch-depth: 0
                   submodules: recursive
-                  token: ${{ steps.app-token.outputs.token }}
 
-            - name: Set User
+            - name: Set Git User
               run: |
                   git config user.name "github-actions[bot]"
                   git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
 
-            - name: Install GitVersion
-              run: dotnet tool install --global GitVersion.Tool
-            
-            - name: Decide GitVersion Bump
-              shell: bash
-              run: |
-                  if [ "${{ github.event.inputs.releaseType }}" == "major" ]; then
-                    echo "GitVersion_BumpMajor=true" >> $GITHUB_ENV
-                  elif [ "${{ github.event.inputs.releaseType }}" == "minor" ]; then
-                    echo "GitVersion_BumpMinor=true" >> $GITHUB_ENV
-                  else
-                    echo "GitVersion_BumpPatch=true" >> $GITHUB_ENV
-                  fi
+            - name: Setup GitVersion
+              uses: gittools/actions/gitversion/setup@v3.1.1
+              with:
+                  versionSpec: '6.0.x'
 
-            - name: Run GitVersion
+            - name: Determine Version with GitVersion
               id: gitversion
-              shell: bash
+              uses: gittools/actions/gitversion/execute@v3.1.1
+              with:
+                  updateAssemblyInfo: false
+                  overrideConfig: |
+                      mode: ContinuousDeployment
+                      increment: ${{ github.event.inputs.releaseType }}
+                  disableCache: false
+                  disableNormalization: false
+                  disableShallowCloneCheck: true
+                  useConfigFile: false
+
+            - name: Debug GitVersion Output
               run: |
-                  # Use /overrideconfig so GitVersion definitely bumps the correct slot.
-                  if [ "${{ github.event.inputs.releaseType }}" == "major" ]; then
-                    OUTPUT=$(dotnet-gitversion /overrideconfig bump=major /output json)
-                  elif [ "${{ github.event.inputs.releaseType }}" == "minor" ]; then
-                    OUTPUT=$(dotnet-gitversion /overrideconfig bump=minor /output json)
-                  else
-                    OUTPUT=$(dotnet-gitversion /overrideconfig bump=patch /output json)
-                  fi
-                  
-                  echo "version=$(echo "$OUTPUT" | jq -r '.MajorMinorPatch')" >> $GITHUB_OUTPUT
-                  echo "full_semver=$(echo "$OUTPUT" | jq -r '.FullSemVer')" >> $GITHUB_OUTPUT
+                  echo "FullSemVer: ${{ steps.gitversion.outputs.fullsemver }}"
+                  echo "Major: ${{ steps.gitversion.outputs.major }}"
+                  echo "Minor: ${{ steps.gitversion.outputs.minor }}"
+                  echo "Patch: ${{ steps.gitversion.outputs.patch }}"
 
             - name: Update `Directory.Build.props`
               run: |
-                  VERSION=${{ steps.gitversion.outputs.version }}
-                  MAJOR=$(echo "$VERSION" | cut -d'.' -f1)
-                  MINOR=$(echo "$VERSION" | cut -d'.' -f2)
-                  PATCH=$(echo "$VERSION" | cut -d'.' -f3)
-                  
+                  MAJOR="${{ steps.gitversion.outputs.major }}"
+                  MINOR="${{ steps.gitversion.outputs.minor }}"
+                  PATCH="${{ steps.gitversion.outputs.patch }}"
                   sed -i "s|<MajorVersion>.*</MajorVersion>|<MajorVersion>${MAJOR}</MajorVersion>|" Directory.Build.props
                   sed -i "s|<MinorVersion>.*</MinorVersion>|<MinorVersion>${MINOR}</MinorVersion>|" Directory.Build.props
                   sed -i "s|<PatchVersion>.*</PatchVersion>|<PatchVersion>${PATCH}</PatchVersion>|" Directory.Build.props
 
             - name: Commit Updated `Directory.Build.props`
               run: |
-                  git config --local user.name "GitHub Actions"
-                  git config --local user.email "actions@github.com"
                   git add Directory.Build.props
-                  git commit -m "chore: update version to ${{ steps.gitversion.outputs.full_semver }}"
+                  git commit -m "chore: update version to ${{ steps.gitversion.outputs.fullsemver }}"
                   git push
               env:
                   GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
