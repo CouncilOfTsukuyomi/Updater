@@ -1,16 +1,15 @@
 ﻿using System;
 using System.Reactive;
 using System.Reactive.Linq;
-using System.Reflection;
 using System.Threading.Tasks;
 using NLog;
 using PenumbraModForwarder.Common.Interfaces;
 using PenumbraModForwarder.Common.Models;
-using PenumbraModForwarder.Updater.Extensions;
-using PenumbraModForwarder.Updater.Interfaces;
 using ReactiveUI;
+using Updater.Extensions;
+using Updater.Interfaces;
 
-namespace PenumbraModForwarder.Updater.ViewModels;
+namespace Updater.ViewModels;
 
 public class MainWindowViewModel : ViewModelBase
 {
@@ -23,8 +22,11 @@ public class MainWindowViewModel : ViewModelBase
     private readonly IConfigurationService _configurationService;
 
     private readonly Random _random = new();
+
     private int _lastIndex1 = -1;
     private int _lastIndex2 = -1;
+    
+    private readonly string _repository = string.Empty;
 
     private GithubStaticResources.InformationJson? _infoJson;
     public GithubStaticResources.InformationJson? InfoJson
@@ -107,24 +109,19 @@ public class MainWindowViewModel : ViewModelBase
             DependencyInjection.DisableSentryLogging();
         }
 
-        // Determine current version
-        var externalCurrentVersion = _appArguments.Args.Length > 0 
-            ? _appArguments.Args[0] 
+        // Extract version from first arg if present
+        var externalCurrentVersion = _appArguments.Args.Length > 0
+            ? _appArguments.Args[0]
             : null;
 
         if (!string.IsNullOrWhiteSpace(externalCurrentVersion))
         {
             _numberedVersionCurrent = externalCurrentVersion;
         }
-        else
-        {
-            var assembly = Assembly.GetExecutingAssembly();
-            var version = assembly.GetName().Version;
-            _numberedVersionCurrent = version == null
-                ? "Local Build"
-                : $"{version.Major}.{version.Minor}.{version.Build}";
-        }
 
+        // Extract repository from second arg
+        _repository = _appArguments.Args[1];
+        
         CurrentVersion = $"Current Version: v{_numberedVersionCurrent}";
 
         UpdateCommand = ReactiveCommand.CreateFromTask(PerformUpdateAsync);
@@ -151,7 +148,6 @@ public class MainWindowViewModel : ViewModelBase
                 return;
             }
 
-            // If this code is reached, the download succeeded
             StatusText = "Download Complete!";
         }
         catch (Exception ex)
@@ -165,7 +161,8 @@ public class MainWindowViewModel : ViewModelBase
     {
         _logger.Debug("Begin() called for MainWindowViewModel");
 
-        var latestVersion = await _updateService.GetMostRecentVersionAsync();
+        // Use the extracted repository here
+        var latestVersion = await _updateService.GetMostRecentVersionAsync(_repository);
         UpdatedVersion = $"Updated Version: {latestVersion}";
         _numberedVersionUpdated = latestVersion;
 
@@ -209,8 +206,7 @@ public class MainWindowViewModel : ViewModelBase
                 do
                 {
                     newIndex = _random.Next(BackgroundImages.Length);
-                }
-                while (newIndex == _lastIndex1 || newIndex == _lastIndex2);
+                } while (newIndex == _lastIndex1 || newIndex == _lastIndex2);
 
                 CurrentImage = BackgroundImages[newIndex];
                 _lastIndex2 = _lastIndex1;

@@ -2,9 +2,9 @@
 using NLog;
 using PenumbraModForwarder.Common.Interfaces;
 using PenumbraModForwarder.Common.Models;
-using PenumbraModForwarder.Updater.Interfaces;
+using Updater.Interfaces;
 
-namespace PenumbraModForwarder.Updater.Services;
+namespace Updater.Services;
 
 public class GetBackgroundInformation : IGetBackgroundInformation
 {

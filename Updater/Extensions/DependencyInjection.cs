@@ -5,10 +5,10 @@ using Microsoft.Extensions.DependencyInjection;
 using PenumbraModForwarder.Common.Extensions;
 using PenumbraModForwarder.Common.Interfaces;
 using PenumbraModForwarder.Common.Services;
-using PenumbraModForwarder.Updater.Interfaces;
-using PenumbraModForwarder.Updater.Services;
+using Updater.Interfaces;
+using Updater.Services;
 
-namespace PenumbraModForwarder.Updater.Extensions;
+namespace Updater.Extensions;
 
 public static class DependencyInjection
 {
@@ -26,8 +26,17 @@ public static class DependencyInjection
             var aria2InstallFolder = Path.Combine(AppContext.BaseDirectory, "aria2");
             return new Aria2Service(aria2InstallFolder);
         });
+        
+        services.AddSingleton<IDownloadAndInstallUpdates>(serviceProvider =>
+        {
+            var aria2Service = serviceProvider.GetRequiredService<IAria2Service>();
+            var updateService = serviceProvider.GetRequiredService<IUpdateService>();
+            var appArgs = serviceProvider.GetRequiredService<IAppArguments>();
+            
+            var repo = appArgs.GitHubRepo;
 
-        services.AddSingleton<IDownloadAndInstallUpdates, DownloadAndInstallUpdates>();
+            return new DownloadAndInstallUpdates(aria2Service, updateService, repo);
+        });
 
         return services;
     }
@@ -36,7 +45,7 @@ public static class DependencyInjection
     {
         Logging.ConfigureLogging(services, "Updater");
     }
-    
+
     public static void EnableSentryLogging()
     {
         var configuration = new ConfigurationBuilder()
@@ -53,7 +62,7 @@ public static class DependencyInjection
 
         Logging.EnableSentry(sentryDns, "Updater");
     }
-    
+
     public static void DisableSentryLogging()
     {
         Logging.DisableSentry("Updater");

@@ -1,9 +1,9 @@
 using System;
 using Avalonia.Controls;
 using Avalonia.Controls.Templates;
-using PenumbraModForwarder.Updater.ViewModels;
+using Updater.ViewModels;
 
-namespace PenumbraModForwarder.Updater;
+namespace Updater;
 
 public class ViewLocator : IDataTemplate
 {

@@ -1,7 +1,7 @@
 ﻿using System.Threading.Tasks;
 using PenumbraModForwarder.Common.Models;
 
-namespace PenumbraModForwarder.Updater.Interfaces;
+namespace Updater.Interfaces;
 
 public interface IGetBackgroundInformation
 {

@@ -1,11 +1,11 @@
 <Application xmlns="https://github.com/avaloniaui"
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
-             x:Class="PenumbraModForwarder.Updater.App"
-             xmlns:local="using:PenumbraModForwarder.Updater">
+             x:Class="Updater.App"
+             xmlns:updater="clr-namespace:Updater">
              <!-- "Default" ThemeVariant follows system theme variant. "Dark" or "Light" are other available options. -->
 
     <Application.DataTemplates>
-        <local:ViewLocator/>
+        <updater:ViewLocator/>
     </Application.DataTemplates>
   
     <Application.Styles>
