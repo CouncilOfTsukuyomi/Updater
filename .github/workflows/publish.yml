@@ -95,7 +95,6 @@ jobs:
               shell: bash
               run: |
                   OUTPUT=$(dotnet-gitversion /output json)
-                  echo "version=$(echo "$OUTPUT" | jq -r '.MajorMinorPatch')" >> $GITHUB_OUTPUT
 
             - name: Generate Release Notes
               id: gen-notes
