@@ -114,7 +114,10 @@ jobs:
             
             # Keep the "Install GitVersion" step name, but do a harmless echo
             - name: Install GitVersion
-              run: echo "Skipping real GitVersion install (manual versioning is used)."
+              run: |
+                  sudo apt-get update -y
+                  sudo apt-get install -y xmlstarlet
+                  
             
             # Keep "Run GitVersion" step name, but just copy the outputs from the prior job
             - name: Run GitVersion
