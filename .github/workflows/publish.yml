@@ -39,17 +39,38 @@ jobs:
                   sudo apt-get update -y
                   sudo apt-get install -y xmlstarlet
 
-            # We keep the "Determine Version with GitVersion" step name, but do our manual version read/increment
             - name: Determine Version with GitVersion
               id: gitversion
               run: |
-                  # Read current version from Directory.Build.props
-                  CURRENT_MAJOR=$(xmlstarlet sel -t -v "//Project/PropertyGroup/MajorVersion" Directory.Build.props)
-                  CURRENT_MINOR=$(xmlstarlet sel -t -v "//Project/PropertyGroup/MinorVersion" Directory.Build.props)
-                  CURRENT_PATCH=$(xmlstarlet sel -t -v "//Project/PropertyGroup/PatchVersion" Directory.Build.props)
+                  # Fail if the file doesn't exist
+                  if [ ! -f Directory.Build.props ]; then
+                    echo "Error: Directory.Build.props not found."
+                    exit 1
+                  fi
                   
-                  # Determine increment type from input
+                  # Read <MajorVersion>, <MinorVersion>, <PatchVersion> from Directory.Build.props
+                  CURRENT_MAJOR=$(xmlstarlet sel -t -v "//Project/PropertyGroup/MajorVersion" Directory.Build.props)
+                  if [ -z "$CURRENT_MAJOR" ]; then
+                    echo "Error: <MajorVersion> not found in Directory.Build.props"
+                    exit 1
+                  fi
+                  
+                  CURRENT_MINOR=$(xmlstarlet sel -t -v "//Project/PropertyGroup/MinorVersion" Directory.Build.props)
+                  if [ -z "$CURRENT_MINOR" ]; then
+                    echo "Error: <MinorVersion> not found in Directory.Build.props"
+                    exit 1
+                  fi
+                  
+                  CURRENT_PATCH=$(xmlstarlet sel -t -v "//Project/PropertyGroup/PatchVersion" Directory.Build.props)
+                  if [ -z "$CURRENT_PATCH" ]; then
+                    echo "Error: <PatchVersion> not found in Directory.Build.props"
+                    exit 1
+                  fi
+                  
+                  # Read increment type from your workflow input
                   RELEASE_TYPE="${{ github.event.inputs.releaseType }}"
+                  
+                  # Increment your version as requested
                   if [ "$RELEASE_TYPE" = "patch" ]; then
                     ((CURRENT_PATCH++))
                   elif [ "$RELEASE_TYPE" = "minor" ]; then
@@ -63,8 +84,7 @@ jobs:
                   
                   NEW_VERSION="${CURRENT_MAJOR}.${CURRENT_MINOR}.${CURRENT_PATCH}"
                   
-                  # Simulate GitVersion's environment variables
-                  # We'll store them in outputs so the next steps can do something similar
+                  # Simulate GitVersion outputs (available to subsequent steps)
                   echo "::set-output name=fullsemver::$NEW_VERSION"
                   echo "::set-output name=major::$CURRENT_MAJOR"
                   echo "::set-output name=minor::$CURRENT_MINOR"
@@ -73,14 +93,14 @@ jobs:
                   # For tag comparison, pick up the latest annotated tag if it exists
                   PREVIOUS_TAG=$(git describe --tags --abbrev=0 2>/dev/null || echo "")
                   echo "::set-output name=previous_tag::$PREVIOUS_TAG"
-        
+
             - name: Debug GitVersion Output
               run: |
                   echo "FullSemVer: ${{ steps.gitversion.outputs.fullsemver }}"
                   echo "Major: ${{ steps.gitversion.outputs.major }}"
                   echo "Minor: ${{ steps.gitversion.outputs.minor }}"
                   echo "Patch: ${{ steps.gitversion.outputs.patch }}"
-        
+
             - name: Update `Directory.Build.props`
               run: |
                   MAJOR="${{ steps.gitversion.outputs.major }}"
@@ -89,7 +109,7 @@ jobs:
                   sed -i "s|<MajorVersion>.*</MajorVersion>|<MajorVersion>${MAJOR}</MajorVersion>|" Directory.Build.props
                   sed -i "s|<MinorVersion>.*</MinorVersion>|<MinorVersion>${MINOR}</MinorVersion>|" Directory.Build.props
                   sed -i "s|<PatchVersion>.*</PatchVersion>|<PatchVersion>${PATCH}</PatchVersion>|" Directory.Build.props
-            
+
             - name: Commit Updated `Directory.Build.props`
               run: |
                   git add Directory.Build.props
@@ -137,11 +157,11 @@ jobs:
               with:
                   fetch-depth: 0
                   submodules: recursive
-    
+            
             # Keep the "Install GitVersion" step name, but do a harmless echo
             - name: Install GitVersion
               run: echo "Skipping real GitVersion install (manual versioning is used)."
-    
+            
             # Keep "Run GitVersion" step name, but just copy the outputs from the prior job
             - name: Run GitVersion
               id: gitversion
