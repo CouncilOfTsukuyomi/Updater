@@ -177,20 +177,30 @@ jobs:
               id: gen-notes
               shell: bash
               run: |
-                  # If there's no previous tag from GitVersion, you can skip or fallback.
-                  # Or, for clarity, you can compare it with the GitHub release tag.  
-                  if [ -z "${{ env.PREVIOUS_TAG }}" ]; then
-                    # If there's no previous local/GitVersion tag, do a minimal summary
-                    echo "COMMITS<<EOF" >> $GITHUB_ENV
-                    echo "No previous tag — skipping commit history." >> $GITHUB_ENV
-                    echo "EOF" >> $GITHUB_ENV
-                  else
-                    # Otherwise, gather commits from PREVIOUS_TAG to HEAD
-                    COMMITS=$(git log "${{ env.PREVIOUS_TAG }}..HEAD" --pretty=format:'- %s (%h)' | grep -v "chore: update version to")
+                  # Fallback logic: if GitVersion didn't find a previous local tag, use GitHub's latest release tag.
+                  GITVERSION_PREVIOUS_TAG="${{ env.PREVIOUS_TAG }}"
+                  GH_LATEST_TAG_RAW="${{ steps.get-release.outputs.latest_tag }}"
+                  FALLBACK_TAG="v${GH_LATEST_TAG_RAW}"
                   
-                    echo "COMMITS<<EOF" >> $GITHUB_ENV
-                    echo "$COMMITS" >> $GITHUB_ENV
-                    echo "EOF" >> $GITHUB_ENV
+                  # If GitVersion's PREVIOUS_TAG is empty but we do have a GitHub release tag, use it
+                  if [ -z "$GITVERSION_PREVIOUS_TAG" ] && [ -n "$GH_LATEST_TAG_RAW" ]; then
+                    echo "No GitVersion previous tag found; falling back to GitHub release tag '$FALLBACK_TAG'."
+                    GITVERSION_PREVIOUS_TAG="$FALLBACK_TAG"
+                  fi
+                  
+                  # If we still have no tag, skip commit history
+                  if [ -z "$GITVERSION_PREVIOUS_TAG" ]; then
+                    echo "COMMITS<<EOF" >> "$GITHUB_ENV"
+                    echo "No previous tag — skipping commit history." >> "$GITHUB_ENV"
+                    echo "EOF" >> "$GITHUB_ENV"
+                  else
+                    # Gather commits from the fallback tag (or the GitVersion previous tag) to HEAD
+                    COMMITS=$(git log "$GITVERSION_PREVIOUS_TAG..HEAD" --pretty=format:'- %s (%h)' \
+                      | grep -v "chore: update version to")
+                  
+                    echo "COMMITS<<EOF" >> "$GITHUB_ENV"
+                    echo "$COMMITS" >> "$GITHUB_ENV"
+                    echo "EOF" >> "$GITHUB_ENV"
                   fi
 
             - name: Create GitHub Release
