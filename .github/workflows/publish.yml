@@ -180,7 +180,7 @@ jobs:
                   # Fallback logic: if GitVersion didn't find a previous local tag, use GitHub's latest release tag.
                   GITVERSION_PREVIOUS_TAG="${{ env.PREVIOUS_TAG }}"
                   GH_LATEST_TAG_RAW="${{ steps.get-release.outputs.latest_tag }}"
-                  FALLBACK_TAG="v${GH_LATEST_TAG_RAW}"
+                  FALLBACK_TAG="${GH_LATEST_TAG_RAW}"
                   
                   # If GitVersion's PREVIOUS_TAG is empty but we do have a GitHub release tag, use it
                   if [ -z "$GITVERSION_PREVIOUS_TAG" ] && [ -n "$GH_LATEST_TAG_RAW" ]; then
