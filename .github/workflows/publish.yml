@@ -16,18 +16,21 @@ jobs:
               uses: actions/checkout@v4
               with:
                   fetch-depth: 0
+                  submodules: recursive
 
             - name: Install GitVersion
               run: dotnet tool install --global GitVersion.Tool
 
             - name: Run GitVersion
               id: gitversion
-              run: dotnet-gitversion /output json
+              shell: bash
+              run: |
+                  OUTPUT=$(dotnet-gitversion /output json)
+                  echo "version=$(echo "$OUTPUT" | jq -r '.MajorMinorPatch')" >> $GITHUB_OUTPUT
 
             - name: Update `Directory.Build.props`
               run: |
-                  VERSION="${{ steps.gitversion.outputs.FullSemVer }}"
-                  # Cut out the major, minor, and patch from the FullSemVer.
+                  VERSION=${{ steps.gitversion.outputs.version }}
                   MAJOR=$(echo "$VERSION" | cut -d'.' -f1)
                   MINOR=$(echo "$VERSION" | cut -d'.' -f2)
                   PATCH=$(echo "$VERSION" | cut -d'.' -f3)
@@ -82,6 +85,7 @@ jobs:
               uses: actions/checkout@v4
               with: 
                   fetch-depth: 0
+                  submodules: recursive
 
             - name: Install GitVersion
               run: dotnet tool install --global GitVersion.Tool
