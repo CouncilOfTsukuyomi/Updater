@@ -37,6 +37,8 @@ public static class DependencyInjection
 
             return new DownloadAndInstallUpdates(aria2Service, updateService, repo);
         });
+        
+        services.AddSingleton<IInstallUpdate, InstallUpdate>();
 
         return services;
     }
