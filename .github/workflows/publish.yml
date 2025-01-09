@@ -1,6 +1,12 @@
 ﻿name: Manual Build and Release
 on:
     workflow_dispatch:
+        
+permissions: 
+    contents: write
+    issues: write
+    pull-requests: write
+    
 
 jobs:
     version-update-and-build:
@@ -8,18 +14,23 @@ jobs:
         steps:
             - name: Checkout Code
               uses: actions/checkout@v4
+              with:
+                  fetch-depth: 0
+                  submodules: recursive
 
             - name: Install GitVersion
               run: dotnet tool install --global GitVersion.Tool
 
             - name: Run GitVersion
               id: gitversion
-              run: gitversion /output json
+              shell: bash
+              run: |
+                  OUTPUT=$(dotnet-gitversion /output json)
+                  echo "version=$(echo "$OUTPUT" | jq -r '.MajorMinorPatch')" >> $GITHUB_OUTPUT
 
             - name: Update `Directory.Build.props`
               run: |
-                  VERSION="${{ steps.gitversion.outputs.FullSemVer }}"
-                  # Cut out the major, minor, and patch from the FullSemVer.
+                  VERSION=${{ steps.gitversion.outputs.version }}
                   MAJOR=$(echo "$VERSION" | cut -d'.' -f1)
                   MINOR=$(echo "$VERSION" | cut -d'.' -f2)
                   PATCH=$(echo "$VERSION" | cut -d'.' -f3)
@@ -48,6 +59,23 @@ jobs:
 
             - name: Build Solution
               run: dotnet build --configuration Release
+              
+            - name: Publish Updater (Windows)
+              run: |
+                  dotnet publish Updater \
+                    -c Release \
+                    -p:PublishSingleFile=true \
+                    --self-contained=true \
+                    -p:DebugType=None -p:DebugSymbols=false \
+                    -r win-x64 \
+                    -o ./publish/windows \
+                    -f net9.0
+            
+            - name: Upload Windows Artifact
+              uses: actions/upload-artifact@v4.5.0
+              with:
+                  name: Updater-Windows
+                  path: ./publish/windows
     
     create-release:
         runs-on: ubuntu-latest
@@ -55,40 +83,80 @@ jobs:
         steps:
             - name: Checkout Code
               uses: actions/checkout@v4
+              with: 
+                  fetch-depth: 0
+                  submodules: recursive
 
             - name: Install GitVersion
               run: dotnet tool install --global GitVersion.Tool
 
             - name: Run GitVersion
               id: gitversion
-              run: gitversion /output json
+              shell: bash
+              run: |
+                  OUTPUT=$(dotnet-gitversion /output json)
+                  
+                  # Grab “FullSemVer” for the tag name
+                  FULL_SEMVER=$(echo "$OUTPUT" | jq -r '.FullSemVer')
+                  MAJORMINORPATCH=$(echo "$OUTPUT" | jq -r '.MajorMinorPatch')
+                  PREVIOUS_TAG=$(echo "$OUTPUT" | jq -r '.PreviousTag // ""')
+                  
+                  echo "FULL_SEMVER=$FULL_SEMVER" >> $GITHUB_ENV
+                  echo "MAJORMINORPATCH=$MAJORMINORPATCH" >> $GITHUB_ENV
+                  echo "PREVIOUS_TAG=$PREVIOUS_TAG" >> $GITHUB_ENV
 
             - name: Generate Release Notes
               id: gen-notes
+              shell: bash
               run: |
-                  PREVIOUS_TAG="${{ steps.gitversion.outputs.PreviousTag }}"
-                  if [ -z "$PREVIOUS_TAG" ]; then
+                  # Fall back if there's no previous tag
+                  if [ -z "${{ env.PREVIOUS_TAG }}" ]; then
                     # If there's no previous tag, fall back to the first commit
                     PREVIOUS_TAG=$(git rev-list --max-parents=0 HEAD)
+                  else
+                    PREVIOUS_TAG="${{ env.PREVIOUS_TAG }}"
                   fi
                   
-                  # Gather commit messages from the previous tag to HEAD
-                  # Then filter out the line with 'chore: update version to'
-                  COMMITS=$(git log "$PREVIOUS_TAG..HEAD" --pretty=format:'- %s (%h)' | grep -v "chore: update version to")
+                  # Gather commit messages from PREVIOUS_TAG to HEAD;
+                  # filter out “chore: update version to”
+                  COMMITS=$(git log "${PREVIOUS_TAG}..HEAD" --pretty=format:'- %s (%h)' | grep -v "chore: update version to")
                   
                   echo "COMMITS<<EOF" >> $GITHUB_ENV
                   echo "$COMMITS" >> $GITHUB_ENV
                   echo "EOF" >> $GITHUB_ENV
 
             - name: Create GitHub Release
+              id: create_release
               uses: actions/create-release@v1
               with:
-                  tag_name: ${{ steps.gitversion.outputs.FullSemVer }}
-                  release_name: Release ${{ steps.gitversion.outputs.FullSemVer }}
+                  tag_name: v${{ env.MAJORMINORPATCH }}
+                  release_name: Release v${{ env.MAJORMINORPATCH }}
                   body: |
                       Changes (since last release):
                       ${{ env.COMMITS }}
                   draft: false
-                  prerelease: ${{ steps.gitversion.outputs.PreReleaseLabel != '' }}
+                  prerelease: false
+              env:
+                  GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+                  
+            - name: Download Windows Artifact
+              uses: actions/download-artifact@v4
+              with:
+                  name: Updater-Windows
+                  path: ./publish/windows
+                  
+            - name: Zip Windows build
+              run: |
+                  cd ./publish/windows
+                  zip -r ../Updater-windows.zip . 
+                  cd ../..
+        
+            - name: Upload Windows ZIP to Release
+              uses: actions/upload-release-asset@v1
+              with:
+                  upload_url: ${{ steps.create_release.outputs.upload_url }}
+                  asset_path: ./publish/Updater-windows.zip
+                  asset_name: Updater-Windows.zip
+                  asset_content_type: application/zip
               env:
                   GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
