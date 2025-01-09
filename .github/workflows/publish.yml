@@ -58,16 +58,17 @@ jobs:
               id: gitversion
               shell: bash
               run: |
-                  OUTPUT=$(dotnet-gitversion /output json)
+                  # Use /overrideconfig so GitVersion definitely bumps the correct slot.
+                  if [ "${{ github.event.inputs.releaseType }}" == "major" ]; then
+                    OUTPUT=$(dotnet-gitversion /overrideconfig bump=major /output json)
+                  elif [ "${{ github.event.inputs.releaseType }}" == "minor" ]; then
+                    OUTPUT=$(dotnet-gitversion /overrideconfig bump=minor /output json)
+                  else
+                    OUTPUT=$(dotnet-gitversion /overrideconfig bump=patch /output json)
+                  fi
+                  
                   echo "version=$(echo "$OUTPUT" | jq -r '.MajorMinorPatch')" >> $GITHUB_OUTPUT
                   echo "full_semver=$(echo "$OUTPUT" | jq -r '.FullSemVer')" >> $GITHUB_OUTPUT
-
-            - name: Debug GitVersion Env
-              shell: bash
-              run: |
-                  # This prints any GitVersion variables if they exist,
-                  # but won't fail the job if none are found.
-                  env | grep GitVersion || echo "No GitVersion_* variables found."
 
             - name: Update `Directory.Build.props`
               run: |
