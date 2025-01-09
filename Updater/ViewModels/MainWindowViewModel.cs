@@ -149,6 +149,8 @@ public class MainWindowViewModel : ViewModelBase
             }
 
             StatusText = "Download Complete!";
+            await Task.Delay(TimeSpan.FromSeconds(2));
+            StatusText = "Installing Updating...";
         }
         catch (Exception ex)
         {

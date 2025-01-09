@@ -1,6 +1,17 @@
 ﻿name: Manual Build and Release
+
 on:
     workflow_dispatch:
+        inputs:
+            releaseType:
+                description: "Which version increment?"
+                required: true
+                default: "patch"
+                type: choice
+                options:
+                    - major
+                    - minor
+                    - patch
 
 permissions:
     contents: write
@@ -36,6 +47,16 @@ jobs:
               id: gitversion
               shell: bash
               run: |
+                  # Conditionally set GitVersion overrides based on the user-chosen releaseType.
+                  if [ "${{ github.event.inputs.releaseType }}" == "major" ]; then
+                    export GitVersion_BumpMajor=true
+                  elif [ "${{ github.event.inputs.releaseType }}" == "minor" ]; then
+                    export GitVersion_BumpMinor=true
+                  else
+                    export GitVersion_BumpPatch=true
+                  fi
+                  
+                  # Run GitVersion and capture JSON output
                   OUTPUT=$(dotnet-gitversion /output json)
                   echo "version=$(echo "$OUTPUT" | jq -r '.MajorMinorPatch')" >> $GITHUB_OUTPUT
                   echo "full_semver=$(echo "$OUTPUT" | jq -r '.FullSemVer')" >> $GITHUB_OUTPUT
@@ -122,8 +143,6 @@ jobs:
               uses: actions/github-script@v7
               with:
                   script: |
-                      // Retrieve all releases, sorted by creation date (descending).
-                      // If no releases were found, set the output to an empty string.
                       const { data: releases } = await github.rest.repos.listReleases({
                         owner: context.repo.owner,
                         repo: context.repo.repo
@@ -131,31 +150,23 @@ jobs:
                       if (!releases || releases.length === 0) {
                         core.setOutput("latest_tag", "");
                       } else {
-                        // The first is the most recently created release
                         core.setOutput("latest_tag", releases[0].tag_name);
                       }
 
             - name: Compare GitHub Tag with GitVersion (SemVer)
               shell: bash
               run: |
-                  # Capture the most recent GitHub release tag (e.g. "v0.0.1")
                   GH_LATEST_TAG_RAW="${{ steps.get-release.outputs.latest_tag }}"
-                  # Capture the FullSemVer from GitVersion (e.g. "0.0.2-7")
                   FULL_SEMVER="${{ env.FULL_SEMVER }}"
                   
-                  # If there's no GitHub release at all, you might do a new release outright:
                   if [ -z "$GH_LATEST_TAG_RAW" ]; then
                     echo "No previous GitHub release found. We'll do a brand-new release."
                     exit 0
                   fi
                   
-                  # Remove “v” from "v0.0.1" → "0.0.1"
                   GH_LATEST_TAG="${GH_LATEST_TAG_RAW#v}"
-                  
-                  # Strip any prerelease suffix in GitVersion's FullSemVer, e.g. "0.0.2-7" → "0.0.2"
                   CLEAN_SEMVER="${FULL_SEMVER%%-*}"
                   
-                  # Split both strings into Major/Minor/Patch
                   GH_MAJOR="$(echo "$GH_LATEST_TAG"   | cut -d'.' -f1)"
                   GH_MINOR="$(echo "$GH_LATEST_TAG"   | cut -d'.' -f2)"
                   GH_PATCH="$(echo "$GH_LATEST_TAG"   | cut -d'.' -f3)"
@@ -166,7 +177,6 @@ jobs:
                   echo "GitHub’s release version: $GH_MAJOR.$GH_MINOR.$GH_PATCH"
                   echo "GitVersion’s version:    $GIT_MAJOR.$GIT_MINOR.$GIT_PATCH"
                   
-                  # Compare them numerically by major, then minor, then patch
                   if [ "$GIT_MAJOR" -gt "$GH_MAJOR" ] || \
                      { [ "$GIT_MAJOR" -eq "$GH_MAJOR" ] && [ "$GIT_MINOR" -gt "$GH_MINOR" ]; } || \
                      { [ "$GIT_MAJOR" -eq "$GH_MAJOR" ] && [ "$GIT_MINOR" -eq "$GH_MINOR" ] && [ "$GIT_PATCH" -gt "$GH_PATCH" ]; }; then
@@ -179,31 +189,26 @@ jobs:
               id: gen-notes
               shell: bash
               run: |
-                  # Fallback logic: if GitVersion didn't find a previous local tag, use GitHub's latest release tag.
                   GITVERSION_PREVIOUS_TAG="${{ env.PREVIOUS_TAG }}"
                   GH_LATEST_TAG_RAW="${{ steps.get-release.outputs.latest_tag }}"
                   FALLBACK_TAG="${GH_LATEST_TAG_RAW}"
                   
-                  # If GitVersion's PREVIOUS_TAG is empty but we do have a GitHub release tag, use it
                   if [ -z "$GITVERSION_PREVIOUS_TAG" ] && [ -n "$GH_LATEST_TAG_RAW" ]; then
                     echo "No GitVersion previous tag found; falling back to GitHub release tag '$FALLBACK_TAG'."
                     GITVERSION_PREVIOUS_TAG="$FALLBACK_TAG"
                   fi
                   
-                  # If we still have no tag, skip commit history
                   if [ -z "$GITVERSION_PREVIOUS_TAG" ]; then
                     echo "COMMITS<<EOF" >> "$GITHUB_ENV"
                     echo "No previous tag — skipping commit history." >> "$GITHUB_ENV"
                     echo "EOF" >> "$GITHUB_ENV"
                   else
-                    # Gather commits from the fallback tag (or the GitVersion previous tag) to HEAD
                     COMMITS=$(git log "$GITVERSION_PREVIOUS_TAG..HEAD" --pretty=format:'- %s (%h)' \
                       | grep -v "chore: update version to")
                   
                     echo "COMMITS<<EOF" >> "$GITHUB_ENV"
                     echo "$COMMITS" >> "$GITHUB_ENV"
                     echo "EOF" >> "$GITHUB_ENV"
-                  fi
 
             - name: Create GitHub Release
               id: create_release

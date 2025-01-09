@@ -31,7 +31,7 @@ public class Program
             try
             {
                 var services = new ServiceCollection();
-                
+
                 var appArgs = new AppArguments(args);
                 if (args.Length > 0)
                 {
@@ -41,6 +41,21 @@ public class Program
                 {
                     appArgs.GitHubRepo = args[1];
                 }
+                
+                if (args.Length < 3)
+                {
+                    _logger.Fatal("Invalid number of arguments passed. Exiting...");
+                    Environment.Exit(1);
+                }
+                else
+                {
+                    appArgs.InstallationPath = args[2];
+                    if (args.Length > 3)
+                    {
+                        appArgs.ProgramToRunAfterInstallation = args[3];
+                    }
+                }
+
                 services.AddSingleton<IAppArguments>(appArgs);
                 
                 services.AddApplicationServices();
