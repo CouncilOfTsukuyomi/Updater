@@ -133,17 +133,44 @@ jobs:
                         core.setOutput("latest_tag", releases[0].tag_name);
                       }
 
-            - name: Compare GitHub Tag with GitVersion
+            - name: Compare GitHub Tag with GitVersion (SemVer)
               shell: bash
               run: |
-                  echo "GitHub's latest tag:      ${{ steps.get-release.outputs.latest_tag }}"
-                  echo "GitVersion's FullSemVer: ${{ env.FULL_SEMVER }}"
+                  # Capture the most recent GitHub release tag (e.g. "v0.0.1")
+                  GH_LATEST_TAG_RAW="${{ steps.get-release.outputs.latest_tag }}"
+                  # Capture the FullSemVer from GitVersion (e.g. "0.0.2-7")
+                  FULL_SEMVER="${{ env.FULL_SEMVER }}"
                   
-                  # Example logic: If there's no previous GitHub release, skip big logs or do something else
-                  if [ -z "${{ steps.get-release.outputs.latest_tag }}" ]; then
-                    echo "No previous GitHub release found."
+                  # If there's no GitHub release at all, you might do a new release outright:
+                  if [ -z "$GH_LATEST_TAG_RAW" ]; then
+                    echo "No previous GitHub release found. We'll do a brand-new release."
+                    exit 0
+                  fi
+                  
+                  # Remove “v” from "v0.0.1" → "0.0.1"
+                  GH_LATEST_TAG="${GH_LATEST_TAG_RAW#v}"
+                  
+                  # Strip any prerelease suffix in GitVersion's FullSemVer, e.g. "0.0.2-7" → "0.0.2"
+                  CLEAN_SEMVER="${FULL_SEMVER%%-*}"
+                  
+                  # Split both strings into Major/Minor/Patch
+                  GH_MAJOR="$(echo "$GH_LATEST_TAG"   | cut -d'.' -f1)"
+                  GH_MINOR="$(echo "$GH_LATEST_TAG"   | cut -d'.' -f2)"
+                  GH_PATCH="$(echo "$GH_LATEST_TAG"   | cut -d'.' -f3)"
+                  GIT_MAJOR="$(echo "$CLEAN_SEMVER"   | cut -d'.' -f1)"
+                  GIT_MINOR="$(echo "$CLEAN_SEMVER"   | cut -d'.' -f2)"
+                  GIT_PATCH="$(echo "$CLEAN_SEMVER"   | cut -d'.' -f3)"
+                  
+                  echo "GitHub’s release version: $GH_MAJOR.$GH_MINOR.$GH_PATCH"
+                  echo "GitVersion’s version:    $GIT_MAJOR.$GIT_MINOR.$GIT_PATCH"
+                  
+                  # Compare them numerically by major, then minor, then patch
+                  if [ "$GIT_MAJOR" -gt "$GH_MAJOR" ] || \
+                     { [ "$GIT_MAJOR" -eq "$GH_MAJOR" ] && [ "$GIT_MINOR" -gt "$GH_MINOR" ]; } || \
+                     { [ "$GIT_MAJOR" -eq "$GH_MAJOR" ] && [ "$GIT_MINOR" -eq "$GH_MINOR" ] && [ "$GIT_PATCH" -gt "$GH_PATCH" ]; }; then
+                    echo "GitVersion is NEWER than GitHub's latest tag. Proceed with releasing."
                   else
-                    echo "We have a previous GitHub release. You can compare versions here."
+                    echo "GitVersion is NOT newer. You might decide to skip or handle differently."
                   fi
 
             - name: Generate Release Notes
