@@ -73,6 +73,8 @@ jobs:
               run: dotnet build --configuration Release
 
             - name: Publish Updater (Windows)
+              env:
+                  SENTRY_DSN: ${{ secrets.SENTRY_DSN }}
               run: |
                   dotnet publish Updater \
                     -c Release \
