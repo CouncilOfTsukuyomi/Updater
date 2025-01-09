@@ -71,6 +71,11 @@ jobs:
                   git push
               env:
                   GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+                  
+            - name: Grab commit SHA
+              id: commitinfo
+              run: |
+                  echo "commit_sha=$(git rev-parse HEAD)" >> "$GITHUB_OUTPUT"
 
             - name: Set Up .NET (v9)
               uses: actions/setup-dotnet@v4
@@ -109,6 +114,7 @@ jobs:
             - name: Checkout Code
               uses: actions/checkout@v4
               with:
+                  ref: ${{ needs.version-update-and-build.outputs.commit_sha }}
                   fetch-depth: 0
                   submodules: recursive
             
