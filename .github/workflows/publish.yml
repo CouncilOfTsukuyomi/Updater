@@ -60,6 +60,9 @@ jobs:
                   OUTPUT=$(dotnet-gitversion /output json)
                   echo "version=$(echo "$OUTPUT" | jq -r '.MajorMinorPatch')" >> $GITHUB_OUTPUT
                   echo "full_semver=$(echo "$OUTPUT" | jq -r '.FullSemVer')" >> $GITHUB_OUTPUT
+                  
+            - name: Debug GitVersion Env
+              run: env | grep GitVersion
 
             - name: Update `Directory.Build.props`
               run: |
