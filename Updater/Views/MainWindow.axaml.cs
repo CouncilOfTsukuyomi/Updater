@@ -1,7 +1,7 @@
 using Avalonia.Controls;
 using NLog;
 
-namespace PenumbraModForwarder.Updater.Views;
+namespace Updater.Views;
 
 public partial class MainWindow : Window
 {

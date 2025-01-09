@@ -1,6 +1,6 @@
 ﻿using ReactiveUI;
 
-namespace PenumbraModForwarder.Updater.ViewModels;
+namespace Updater.ViewModels;
 
 public class ViewModelBase : ReactiveObject
 {

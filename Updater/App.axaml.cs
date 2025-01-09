@@ -4,10 +4,10 @@ using Avalonia.Controls.ApplicationLifetimes;
 using Avalonia.Markup.Xaml;
 using Microsoft.Extensions.DependencyInjection;
 using NLog;
-using PenumbraModForwarder.Updater.ViewModels;
-using PenumbraModForwarder.Updater.Views;
+using Updater.ViewModels;
+using MainWindow = Updater.Views.MainWindow;
 
-namespace PenumbraModForwarder.Updater;
+namespace Updater;
 
 public partial class App : Application
 {

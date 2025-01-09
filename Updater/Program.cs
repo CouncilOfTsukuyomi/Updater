@@ -4,11 +4,11 @@ using Avalonia;
 using Avalonia.ReactiveUI;
 using Microsoft.Extensions.DependencyInjection;
 using NLog;
-using PenumbraModForwarder.Updater.Extensions;
-using PenumbraModForwarder.Updater.Interfaces;
-using PenumbraModForwarder.Updater.Services;
+using Updater.Extensions;
+using Updater.Interfaces;
+using Updater.Services;
 
-namespace PenumbraModForwarder.Updater;
+namespace Updater;
 
 public class Program
 {
@@ -20,23 +20,29 @@ public class Program
     public static void Main(string[] args)
     {
         bool isNewInstance;
-        using (var mutex = new Mutex(true, "PenumbraModForwarder.Updater", out isNewInstance))
+        using (var mutex = new Mutex(true, "Updater", out isNewInstance))
         {
             if (!isNewInstance)
             {
-                Console.WriteLine("Another instance of PenumbraModForwarder.Updater is already running. Exiting...");
+                Console.WriteLine("Another instance of Updater is already running. Exiting...");
                 return;
             }
 
             try
             {
                 var services = new ServiceCollection();
-
-                // Create and register your app arguments
+                
                 var appArgs = new AppArguments(args);
+                if (args.Length > 0)
+                {
+                    appArgs.VersionNumber = args[0];
+                }
+                if (args.Length > 1)
+                {
+                    appArgs.GitHubRepo = args[1];
+                }
                 services.AddSingleton<IAppArguments>(appArgs);
-
-                // Register other application services
+                
                 services.AddApplicationServices();
 
                 ServiceProvider = services.BuildServiceProvider();
