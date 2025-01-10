@@ -90,7 +90,8 @@ public class MainWindowViewModel : ViewModelBase
         IUpdateService updateService,
         IDownloadAndInstallUpdates downloadAndInstallUpdates,
         IAppArguments appArguments,
-        IConfigurationService configurationService, IInstallUpdate installUpdate)
+        IConfigurationService configurationService, 
+        IInstallUpdate installUpdate)
     {
         _logger.Debug("Constructing MainWindowViewModel...");
 
@@ -101,8 +102,8 @@ public class MainWindowViewModel : ViewModelBase
         _configurationService = configurationService;
         _installUpdate = installUpdate;
 
-        // Toggle Sentry logging based on config
-        if ((bool)_configurationService.ReturnConfigValue(c => c.Common.EnableSentry))
+        // Respect the enableSentry command-line argument if present
+        if (_appArguments.EnableSentry)
         {
             DependencyInjection.EnableSentryLogging();
         }
@@ -122,7 +123,9 @@ public class MainWindowViewModel : ViewModelBase
         }
 
         // Extract repository from second arg
-        _repository = _appArguments.Args[1];
+        _repository = _appArguments.Args.Length > 1
+            ? _appArguments.Args[1]
+            : string.Empty;
         
         CurrentVersion = $"Current Version: v{_numberedVersionCurrent}";
 
@@ -140,7 +143,6 @@ public class MainWindowViewModel : ViewModelBase
             _logger.Debug("Update button clicked");
             StatusText = "Downloading Update...";
 
-            // Attempt to download and install
             var (success, downloadPath) = await _downloadAndInstallUpdates
                 .DownloadAndInstallAsync(_numberedVersionCurrent);
 
@@ -172,7 +174,7 @@ public class MainWindowViewModel : ViewModelBase
     {
         _logger.Debug("Begin() called for MainWindowViewModel");
 
-        // Use the extracted repository here
+        // Pass the prerelease setting if your IUpdateService can handle it
         var latestVersion = await _updateService.GetMostRecentVersionAsync(_repository);
         UpdatedVersion = $"Updated Version: {latestVersion}";
         _numberedVersionUpdated = latestVersion;

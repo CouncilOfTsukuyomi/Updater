@@ -7,4 +7,5 @@ public interface IAppArguments
     public string GitHubRepo { get; set; }
     public string InstallationPath { get; set; }
     public string ProgramToRunAfterInstallation { get; set; }
+    public bool EnableSentry { get; set; }
 }

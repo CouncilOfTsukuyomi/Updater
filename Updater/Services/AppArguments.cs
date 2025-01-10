@@ -25,4 +25,5 @@ public class AppArguments : IAppArguments
     public string GitHubRepo { get; set; } = string.Empty;
     public string InstallationPath { get; set; } = string.Empty;
     public string ProgramToRunAfterInstallation { get; set; } = string.Empty;
+    public bool EnableSentry { get; set; } = false;
 }
