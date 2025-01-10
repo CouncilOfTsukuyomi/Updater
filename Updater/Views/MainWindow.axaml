@@ -11,7 +11,7 @@
         Width="800"
         Height="500"
         TransparencyLevelHint="AcrylicBlur"
-        Background="#05040b"
+        Background="#262626"
         ExtendClientAreaToDecorationsHint="True"
         ExtendClientAreaChromeHints="NoChrome"
         CanResize="False"
