@@ -7,6 +7,8 @@ using PenumbraModForwarder.Common.Interfaces;
 using PenumbraModForwarder.Common.Services;
 using Updater.Interfaces;
 using Updater.Services;
+using Updater.ViewModels;
+using Updater.Views;
 
 namespace Updater.Extensions;
 
@@ -39,6 +41,14 @@ public static class DependencyInjection
         });
         
         services.AddSingleton<IInstallUpdate, InstallUpdate>();
+        
+        // Views
+        services.AddSingleton<ErrorWindow>();
+        services.AddSingleton<MainWindow>();
+        
+        // ViewModels
+        services.AddSingleton<MainWindowViewModel>();
+        services.AddSingleton<ErrorWindowViewModel>();
 
         return services;
     }
