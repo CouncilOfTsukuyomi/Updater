@@ -4,82 +4,84 @@ using Avalonia.Controls.ApplicationLifetimes;
 using Avalonia.Markup.Xaml;
 using Microsoft.Extensions.DependencyInjection;
 using NLog;
-using Updater.Interfaces;
+using PenumbraModForwarder.Common.Interfaces;
 using Updater.ViewModels;
 using Updater.Views;
 using MainWindow = Updater.Views.MainWindow;
 
 namespace Updater;
 
-    public partial class App : Application
+public partial class App : Application
+{
+    private static readonly Logger _logger = LogManager.GetCurrentClassLogger();
+    private readonly IServiceProvider _serviceProvider;
+
+    public App()
     {
-        private static readonly Logger _logger = LogManager.GetCurrentClassLogger();
-        private readonly IServiceProvider _serviceProvider;
-
-        public App()
+        try
         {
-            try
-            {
-                _serviceProvider = Program.ServiceProvider;
-                AvaloniaXamlLoader.Load(this);
-            }
-            catch (Exception ex)
-            {
-                _logger.Fatal(ex, "Failed to initialize ServiceProvider");
-                Environment.Exit(1);
-            }
+            _serviceProvider = Program.ServiceProvider;
+            AvaloniaXamlLoader.Load(this);
         }
-
-        public override void OnFrameworkInitializationCompleted()
+        catch (Exception ex)
         {
-            if (ApplicationLifetime is IClassicDesktopStyleApplicationLifetime desktop)
-            {
-                // Retrieve args from environment, or from IAppArguments, as preferred.
-                var args = Environment.GetCommandLineArgs();
-                _logger.Debug("Command-line arguments: {Args}", string.Join(", ", args));
+            _logger.Fatal(ex, "Failed to initialize ServiceProvider");
+            Environment.Exit(1);
+        }
+    }
 
-                // Perform more thorough argument checks here.
-                // Example: We expect 5 arguments.
-                if (args.Length < 5)
+public override void OnFrameworkInitializationCompleted()
+    {
+        if (ApplicationLifetime is IClassicDesktopStyleApplicationLifetime desktop)
+        {
+            // Retrieve command-line arguments.
+            var args = Environment.GetCommandLineArgs();
+            _logger.Debug("Command-line arguments: {Args}", string.Join(", ", args));
+
+            _logger.Debug("Ammount of CLI Args: {Number}", args.Length);
+            // Expecting 6 total arguments: 
+            // [0]=DLL path, [1]=version, [2]=repo, [3]=install path, [4]=enableSentry bool, [5]=programToRunAfterInstall
+            if (args.Length < 5)
+            {
+                _logger.Error("Invalid number of arguments passed. Showing error window instead.");
+                desktop.MainWindow = new ErrorWindow
                 {
-                    _logger.Error("Invalid number of arguments passed. Showing error window instead.");
-                    desktop.MainWindow = new ErrorWindow
-                    {
-                        DataContext = ActivatorUtilities.CreateInstance<ErrorWindowViewModel>(_serviceProvider)
-                    };
+                    DataContext = ActivatorUtilities.CreateInstance<ErrorWindowViewModel>(_serviceProvider)
+                };
+            }
+            else
+            {
+                var appArgs = (IAppArguments)_serviceProvider.GetService(typeof(IAppArguments))!;
+
+                appArgs.VersionNumber = args[1];
+                appArgs.GitHubRepo = args[2];
+                appArgs.InstallationPath = args[3];
+
+                if (!bool.TryParse(args[4], out bool enableSentry))
+                {
+                    _logger.Warn("Could not parse enableSentry as boolean. Defaulting to false.");
+                    enableSentry = false;
+                }
+                appArgs.EnableSentry = enableSentry;
+
+                // Only parse args[5] if it's present; otherwise default to empty or another fallback.
+                if (args.Length > 5)
+                {
+                    appArgs.ProgramToRunAfterInstallation = args[5];
                 }
                 else
                 {
-                    // Acquire the stored IAppArguments and parse them as needed.
-                    var appArgs = (IAppArguments)_serviceProvider.GetService(typeof(IAppArguments))!;
-
-                    // 1) VersionNumber
-                    appArgs.VersionNumber = args[0];
-                    // 2) GitHubRepo
-                    appArgs.GitHubRepo = args[1];
-                    // 3) InstallationPath
-                    appArgs.InstallationPath = args[2];
-                    
-                    // 4) enableSentry
-                    if (!bool.TryParse(args[3], out bool enableSentry))
-                    {
-                        _logger.Warn("Could not parse enableSentry as boolean. Defaulting to false.");
-                        enableSentry = false;
-                    }
-                    appArgs.EnableSentry = enableSentry;
-
-                    // 5) ProgramToRunAfterInstallation
-                    appArgs.ProgramToRunAfterInstallation = args[4];
-
-                    // If everything is valid, show the main window.
-                    _logger.Debug("All arguments look good. Showing main window...");
-                    desktop.MainWindow = new MainWindow
-                    {
-                        DataContext = ActivatorUtilities.CreateInstance<MainWindowViewModel>(_serviceProvider)
-                    };
+                    appArgs.ProgramToRunAfterInstallation = string.Empty;
                 }
-            }
 
-            base.OnFrameworkInitializationCompleted();
+                _logger.Debug("All arguments look good. Showing main window...");
+                desktop.MainWindow = new MainWindow
+                {
+                    DataContext = ActivatorUtilities.CreateInstance<MainWindowViewModel>(_serviceProvider)
+                };
+            }
         }
+
+        base.OnFrameworkInitializationCompleted();
     }
+}

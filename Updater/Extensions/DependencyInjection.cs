@@ -34,10 +34,8 @@ public static class DependencyInjection
             var aria2Service = serviceProvider.GetRequiredService<IAria2Service>();
             var updateService = serviceProvider.GetRequiredService<IUpdateService>();
             var appArgs = serviceProvider.GetRequiredService<IAppArguments>();
-            
-            var repo = appArgs.GitHubRepo;
 
-            return new DownloadAndInstallUpdates(aria2Service, updateService, repo);
+            return new DownloadAndInstallUpdates(aria2Service, updateService, appArgs);
         });
         
         services.AddSingleton<IInstallUpdate, InstallUpdate>();
