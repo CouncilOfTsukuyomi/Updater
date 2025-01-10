@@ -33,7 +33,15 @@ public class InstallUpdate : IInstallUpdate
 
             CopyDirectory(downloadedPath, _appArguments.InstallationPath);
 
+            // Allow file operations to settle
             await Task.Delay(400);
+
+            // If there's no specified program, just return true
+            if (string.IsNullOrWhiteSpace(_appArguments.ProgramToRunAfterInstallation))
+            {
+                _logger.Info("No ProgramToRunAfterInstallation set; skipping execution.");
+                return true;
+            }
 
             var programPath = Path.Combine(_appArguments.InstallationPath, _appArguments.ProgramToRunAfterInstallation);
 
