@@ -58,12 +58,13 @@ public static class DependencyInjection
 
     public static void EnableSentryLogging()
     {
+        Console.WriteLine("EnableSentryLogging");
         var configuration = new ConfigurationBuilder()
             .AddUserSecrets<Program>()
             .AddEnvironmentVariables()
             .Build();
 
-        var sentryDns = configuration["SENTRY_DNS"];
+        var sentryDns = configuration["SENTRY_DSN"];
         if (string.IsNullOrWhiteSpace(sentryDns))
         {
             Console.WriteLine("No SENTRY_DSN provided. Skipping Sentry enablement.");
@@ -75,6 +76,7 @@ public static class DependencyInjection
 
     public static void DisableSentryLogging()
     {
+        Console.WriteLine("DisableSentryLogging");
         Logging.DisableSentry("Updater");
     }
 }
