@@ -5,7 +5,7 @@
         <!-- Version components -->
         <MajorVersion>0</MajorVersion>
         <MinorVersion>1</MinorVersion>
-        <PatchVersion>6</PatchVersion>
+        <PatchVersion>7</PatchVersion>
 
         <!-- Combined version properties -->
         <VersionPrefix>$(MajorVersion).$(MinorVersion).$(PatchVersion)</VersionPrefix>
