@@ -173,6 +173,16 @@ public class MainWindowViewModel : ViewModelBase
     private async Task Begin()
     {
         _logger.Debug("Begin() called for MainWindowViewModel");
+        
+        var (info, updater) = await _getBackgroundInformation.GetResources();
+        InfoJson = info;
+        UpdaterInfoJson = updater;
+
+        if (UpdaterInfoJson?.Backgrounds?.Images != null)
+        {
+            BackgroundImages = UpdaterInfoJson.Backgrounds.Images;
+        }
+        StartImageRotation();
 
         // Pass the prerelease setting if your IUpdateService can handle it
         var latestVersion = await _updateService.GetMostRecentVersionAsync(_repository);
@@ -183,17 +193,6 @@ public class MainWindowViewModel : ViewModelBase
         {
             StatusText = "Update Needed...";
         }
-
-        var (info, updater) = await _getBackgroundInformation.GetResources();
-        InfoJson = info;
-        UpdaterInfoJson = updater;
-
-        if (UpdaterInfoJson?.Backgrounds?.Images != null)
-        {
-            BackgroundImages = UpdaterInfoJson.Backgrounds.Images;
-        }
-
-        StartImageRotation();
     }
 
     private void StartImageRotation()
