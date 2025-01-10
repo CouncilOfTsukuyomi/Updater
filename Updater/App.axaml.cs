@@ -36,7 +36,7 @@ public override void OnFrameworkInitializationCompleted()
         {
             // Retrieve command-line arguments.
             var args = Environment.GetCommandLineArgs();
-            _logger.Debug("Command-line arguments: {Args}", string.Join(", ", args));
+            _logger.Info("Command-line arguments: {Args}", string.Join(", ", args));
 
             _logger.Debug("Ammount of CLI Args: {Number}", args.Length);
             // Expecting 6 total arguments: 

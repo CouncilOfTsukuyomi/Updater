@@ -24,6 +24,12 @@ public class InstallUpdate : IInstallUpdate
     {
         try
         {
+            if (string.IsNullOrWhiteSpace(_appArguments.InstallationPath))
+            {
+                _logger.Error("InstallationPath is empty. Please provide a valid path.");
+                return false;
+            }
+
             _logger.Debug($"Copying folder from {downloadedPath} to {_appArguments.InstallationPath}");
 
             if (!_fileStorage.Exists(_appArguments.InstallationPath))
@@ -32,11 +38,8 @@ public class InstallUpdate : IInstallUpdate
             }
 
             CopyDirectory(downloadedPath, _appArguments.InstallationPath);
-
-            // Allow file operations to settle
             await Task.Delay(400);
 
-            // If there's no specified program, just return true
             if (string.IsNullOrWhiteSpace(_appArguments.ProgramToRunAfterInstallation))
             {
                 _logger.Info("No ProgramToRunAfterInstallation set; skipping execution.");
@@ -44,7 +47,6 @@ public class InstallUpdate : IInstallUpdate
             }
 
             var programPath = Path.Combine(_appArguments.InstallationPath, _appArguments.ProgramToRunAfterInstallation);
-
             if (_fileStorage.Exists(programPath))
             {
                 _logger.Debug($"Starting program: {programPath}");
@@ -65,7 +67,6 @@ public class InstallUpdate : IInstallUpdate
                         _logger.Debug("[STDOUT]: {Data}", e.Data);
                     }
                 };
-
                 process.ErrorDataReceived += (sender, e) =>
                 {
                     if (!string.IsNullOrEmpty(e.Data))
@@ -73,7 +74,6 @@ public class InstallUpdate : IInstallUpdate
                         _logger.Error("[STDERR]: {Data}", e.Data);
                     }
                 };
-
                 process.Exited += (sender, e) =>
                 {
                     _logger.Info("exited with code {ExitCode}", process.ExitCode);
