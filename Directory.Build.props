@@ -3,7 +3,7 @@
         <!-- Version components -->
         <MajorVersion>0</MajorVersion>
         <MinorVersion>1</MinorVersion>
-        <PatchVersion>7</PatchVersion>
+        <PatchVersion>8</PatchVersion>
 
         <!-- Set this environment variable or property to 'true' if you want a beta build -->
         <!-- For example: dotnet build /p:IsBeta=true -->
