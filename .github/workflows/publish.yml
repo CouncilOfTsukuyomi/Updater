@@ -12,6 +12,14 @@ on:
                     - major
                     - minor
                     - patch
+            isBeta:
+                description: "Build as a beta release?"
+                required: true
+                default: "false"
+                type: choice
+                options:
+                    - "false"
+                    - "true"
 
 permissions:
     contents: write
@@ -27,7 +35,7 @@ jobs:
               with:
                   app-id: ${{ vars.APP_ID }}
                   private-key: ${{ secrets.APP_PRIVATE_KEY }}
-                  
+
             - name: Checkout Code
               uses: actions/checkout@v4
               with:
@@ -50,7 +58,6 @@ jobs:
             - name: Determine Version with GitVersion
               id: gitversion
               run: |
-                  # Provide the selected release type (patch, minor, major) to the Python script
                   RELEASE_TYPE="${{ github.event.inputs.releaseType }}" \
                     .github/scripts/increment_version.py
               env:
@@ -63,19 +70,25 @@ jobs:
                   echo "Minor: ${{ steps.gitversion.outputs.minor }}"
                   echo "Patch: ${{ steps.gitversion.outputs.patch }}"
 
-            - name: Update `Directory.Build.props`
+            - name: Update `Directory.Build.props` Versions
               run: |
                   MAJOR="${{ steps.gitversion.outputs.major }}"
                   MINOR="${{ steps.gitversion.outputs.minor }}"
                   PATCH="${{ steps.gitversion.outputs.patch }}"
+                  
                   sed -i "s|<MajorVersion>.*</MajorVersion>|<MajorVersion>${MAJOR}</MajorVersion>|" Directory.Build.props
                   sed -i "s|<MinorVersion>.*</MinorVersion>|<MinorVersion>${MINOR}</MinorVersion>|" Directory.Build.props
                   sed -i "s|<PatchVersion>.*</PatchVersion>|<PatchVersion>${PATCH}</PatchVersion>|" Directory.Build.props
 
+            - name: Handle Beta Builds
+              run: |
+                  # Overwrite <IsBeta> based on user input
+                  sed -i "s|<IsBeta>.*</IsBeta>|<IsBeta>${{ github.event.inputs.isBeta }}</IsBeta>|" Directory.Build.props
+
             - name: Commit Updated `Directory.Build.props`
               run: |
                   git add Directory.Build.props
-                  git commit -m "chore: update version to ${{ steps.gitversion.outputs.fullsemver }}"
+                  git commit -m "chore: update version to ${{ steps.gitversion.outputs.fullsemver }} (isBeta=${{ github.event.inputs.isBeta }})"
                   git push
               env:
                   GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
@@ -103,7 +116,7 @@ jobs:
                     -r win-x64 \
                     -o ./publish/windows \
                     -f net9.0
-            
+
             - name: Run GitVersion
               id: gitversion2
               shell: bash
@@ -117,7 +130,7 @@ jobs:
                   echo "FULL_SEMVER=$FULL_SEMVER" >> $GITHUB_ENV
                   echo "MAJORMINORPATCH=$FULL_SEMVER" >> $GITHUB_ENV
                   echo "PREVIOUS_TAG=$PREVIOUS_TAG" >> $GITHUB_ENV
-            
+
             - name: Get Latest Release from GitHub
               id: get-release
               uses: actions/github-script@v7
@@ -132,7 +145,7 @@ jobs:
                       } else {
                         core.setOutput("latest_tag", releases[0].tag_name);
                       }
-            
+
             - name: Compare GitHub Tag with GitVersion (SemVer)
               shell: bash
               run: |
@@ -147,12 +160,12 @@ jobs:
                   GH_LATEST_TAG="${GH_LATEST_TAG_RAW#v}"
                   CLEAN_SEMVER="${FULL_SEMVER%%-*}"
                   
-                  GH_MAJOR="$(echo "$GH_LATEST_TAG"   | cut -d'.' -f1)"
-                  GH_MINOR="$(echo "$GH_LATEST_TAG"   | cut -d'.' -f2)"
-                  GH_PATCH="$(echo "$GH_LATEST_TAG"   | cut -d'.' -f3)"
-                  GIT_MAJOR="$(echo "$CLEAN_SEMVER"   | cut -d'.' -f1)"
-                  GIT_MINOR="$(echo "$CLEAN_SEMVER"   | cut -d'.' -f2)"
-                  GIT_PATCH="$(echo "$CLEAN_SEMVER"   | cut -d'.' -f3)"
+                  GH_MAJOR="$(echo "$GH_LATEST_TAG" | cut -d'.' -f1)"
+                  GH_MINOR="$(echo "$GH_LATEST_TAG" | cut -d'.' -f2)"
+                  GH_PATCH="$(echo "$GH_LATEST_TAG" | cut -d'.' -f3)"
+                  GIT_MAJOR="$(echo "$CLEAN_SEMVER" | cut -d'.' -f1)"
+                  GIT_MINOR="$(echo "$CLEAN_SEMVER" | cut -d'.' -f2)"
+                  GIT_PATCH="$(echo "$CLEAN_SEMVER" | cut -d'.' -f3)"
                   
                   echo "GitHub’s release version: $GH_MAJOR.$GH_MINOR.$GH_PATCH"
                   echo "Local version:           $GIT_MAJOR.$GIT_MINOR.$GIT_PATCH"
@@ -164,7 +177,7 @@ jobs:
                   else
                     echo "Local version is NOT newer. You might decide to skip or handle differently."
                   fi
-            
+
             - name: Generate Release Notes
               id: gen-notes
               shell: bash
@@ -189,8 +202,7 @@ jobs:
                     echo "COMMITS<<EOF" >> "$GITHUB_ENV"
                     echo "$COMMITS" >> "$GITHUB_ENV"
                     echo "EOF" >> "$GITHUB_ENV"
-                  fi
-            
+
             - name: Create GitHub Release
               id: create_release
               uses: actions/create-release@v1
@@ -204,13 +216,13 @@ jobs:
                   prerelease: false
               env:
                   GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        
+
             - name: Zip Windows build
               run: |
                   cd ./publish/windows
                   zip -r ../Updater-windows.zip .
                   cd ../..
-        
+
             - name: Upload Windows ZIP to Release
               uses: actions/upload-release-asset@v1
               with:

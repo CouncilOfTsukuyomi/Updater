@@ -1,14 +1,19 @@
 ﻿<Project>
     <PropertyGroup>
-        <UserSecretsId>Secrets</UserSecretsId>
-
         <!-- Version components -->
         <MajorVersion>0</MajorVersion>
         <MinorVersion>1</MinorVersion>
         <PatchVersion>7</PatchVersion>
 
-        <!-- Combined version properties -->
-        <VersionPrefix>$(MajorVersion).$(MinorVersion).$(PatchVersion)</VersionPrefix>
+        <!-- Set this environment variable or property to 'true' if you want a beta build -->
+        <!-- For example: dotnet build /p:IsBeta=true -->
+        <IsBeta Condition="'$(IsBeta)' == ''">false</IsBeta>
+
+        <!-- Only set a prerelease label if the 'IsBeta' property is true -->
+        <PrereleaseLabel Condition="'$(IsBeta)' == 'true'">b</PrereleaseLabel>
+
+        <!-- Combine version properties, appending '-b' only if the PrereleaseLabel is set -->
+        <VersionPrefix>$(MajorVersion).$(MinorVersion).$(PatchVersion)$(PrereleaseLabel == '' ? '' : '-' + $(PrereleaseLabel))</VersionPrefix>
         <FileVersion>$(VersionPrefix)</FileVersion>
         <AssemblyVersion>$(VersionPrefix)</AssemblyVersion>
         <AssemblyInformationalVersion>v$(VersionPrefix)</AssemblyInformationalVersion>
