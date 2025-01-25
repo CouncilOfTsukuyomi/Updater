@@ -3,17 +3,34 @@
         <!-- Version components -->
         <MajorVersion>0</MajorVersion>
         <MinorVersion>1</MinorVersion>
-        <PatchVersion>8</PatchVersion>
+        <PatchVersion>7</PatchVersion>
 
-        <!-- Set this environment variable or property to 'true' if you want a beta build -->
-        <!-- For example: dotnet build /p:IsBeta=true -->
-        <IsBeta Condition="'$(IsBeta)' == ''">false</IsBeta>
+        <!-- Controls whether we're doing a beta build -->
+        <IsBeta>false</IsBeta>
+    </PropertyGroup>
 
-        <!-- Only set a prerelease label if the 'IsBeta' property is true -->
-        <PrereleaseLabel Condition="'$(IsBeta)' == 'true'">b</PrereleaseLabel>
+    <!-- If we're building a beta release, set the prerelease label to 'b' -->
+    <PropertyGroup Condition="'$(IsBeta)' == 'true'">
+        <PrereleaseLabel>b</PrereleaseLabel>
+    </PropertyGroup>
 
-        <!-- Combine version properties, appending '-b' only if the PrereleaseLabel is set -->
-        <VersionPrefix>$(MajorVersion).$(MinorVersion).$(PatchVersion)$(PrereleaseLabel == '' ? '' : '-' + $(PrereleaseLabel))</VersionPrefix>
+    <!-- If we're not building a beta release, clear out the prerelease label -->
+    <PropertyGroup Condition="'$(IsBeta)' != 'true'">
+        <PrereleaseLabel></PrereleaseLabel>
+    </PropertyGroup>
+
+    <!-- If prerelease label is empty, produce a plain version string -->
+    <PropertyGroup Condition="'$(PrereleaseLabel)' == ''">
+        <VersionPrefix>$(MajorVersion).$(MinorVersion).$(PatchVersion)</VersionPrefix>
+    </PropertyGroup>
+
+    <!-- If prerelease label is set, append it with a dash -->
+    <PropertyGroup Condition="'$(PrereleaseLabel)' != ''">
+        <VersionPrefix>$(MajorVersion).$(MinorVersion).$(PatchVersion)-$(PrereleaseLabel)</VersionPrefix>
+    </PropertyGroup>
+
+    <!-- Update other version properties from VersionPrefix -->
+    <PropertyGroup>
         <FileVersion>$(VersionPrefix)</FileVersion>
         <AssemblyVersion>$(VersionPrefix)</AssemblyVersion>
         <AssemblyInformationalVersion>v$(VersionPrefix)</AssemblyInformationalVersion>
