@@ -70,7 +70,7 @@ jobs:
                   echo "Minor: ${{ steps.gitversion.outputs.minor }}"
                   echo "Patch: ${{ steps.gitversion.outputs.patch }}"
 
-            - name: Update `Directory.Build.props` Versions
+            - name: Update Directory.Build.props Versions
               run: |
                   MAJOR="${{ steps.gitversion.outputs.major }}"
                   MINOR="${{ steps.gitversion.outputs.minor }}"
@@ -85,7 +85,7 @@ jobs:
                   # Overwrite <IsBeta> based on user input
                   sed -i "s|<IsBeta>.*</IsBeta>|<IsBeta>${{ github.event.inputs.isBeta }}</IsBeta>|" Directory.Build.props
 
-            - name: Commit Updated `Directory.Build.props`
+            - name: Commit Updated Directory.Build.props
               run: |
                   git add Directory.Build.props
                   git commit -m "chore: update version to ${{ steps.gitversion.outputs.fullsemver }} (isBeta=${{ github.event.inputs.isBeta }})"
@@ -117,13 +117,14 @@ jobs:
                     -o ./publish/windows \
                     -f net9.0
 
-            - name: Run GitVersion
+            - name: Run GitVersion again
               id: gitversion2
               shell: bash
               run: |
                   CURRENT_MAJOR=$(xmlstarlet sel -t -v "//Project/PropertyGroup/MajorVersion" Directory.Build.props)
                   CURRENT_MINOR=$(xmlstarlet sel -t -v "//Project/PropertyGroup/MinorVersion" Directory.Build.props)
                   CURRENT_PATCH=$(xmlstarlet sel -t -v "//Project/PropertyGroup/PatchVersion" Directory.Build.props)
+                  
                   FULL_SEMVER="${CURRENT_MAJOR}.${CURRENT_MINOR}.${CURRENT_PATCH}"
                   PREVIOUS_TAG=$(git describe --tags --abbrev=0 2>/dev/null || echo "")
                   
@@ -184,7 +185,7 @@ jobs:
               run: |
                   GITVERSION_PREVIOUS_TAG="${{ env.PREVIOUS_TAG }}"
                   GH_LATEST_TAG_RAW="${{ steps.get-release.outputs.latest_tag }}"
-                  FALLBACK_TAG="${GH_LATEST_TAG_RAW}"
+                  FALLBACK_TAG="$GH_LATEST_TAG_RAW"
                   
                   if [ -z "$GITVERSION_PREVIOUS_TAG" ] && [ -n "$GH_LATEST_TAG_RAW" ]; then
                     echo "No local previous tag found; falling back to GitHub release tag '$FALLBACK_TAG'."
@@ -196,12 +197,12 @@ jobs:
                     echo "No previous tag — skipping commit history." >> "$GITHUB_ENV"
                     echo "EOF" >> "$GITHUB_ENV"
                   else
-                    COMMITS=$(git log "$GITVERSION_PREVIOUS_TAG..HEAD" --pretty=format:'- %s (%h)' \
-                      | grep -v "chore: update version to")
+                    COMMITS=$(git log "$GITVERSION_PREVIOUS_TAG..HEAD" --pretty=format:'- %s (%h)' | grep -v "chore: update version to")
                   
                     echo "COMMITS<<EOF" >> "$GITHUB_ENV"
                     echo "$COMMITS" >> "$GITHUB_ENV"
                     echo "EOF" >> "$GITHUB_ENV"
+                  fi
 
             - name: Create GitHub Release
               id: create_release
