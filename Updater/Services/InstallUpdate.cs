@@ -2,8 +2,8 @@
 using System.Diagnostics;
 using System.IO;
 using System.Threading.Tasks;
+using CommonLib.Interfaces;
 using NLog;
-using PenumbraModForwarder.Common.Interfaces;
 using Updater.Interfaces;
 
 namespace Updater.Services;
@@ -39,6 +39,18 @@ public class InstallUpdate : IInstallUpdate
 
             CopyDirectory(downloadedPath, _appArguments.InstallationPath);
             await Task.Delay(400);
+
+            // Clean up the downloaded files after successful copy
+            try
+            {
+                _logger.Debug($"Cleaning up downloaded files from {downloadedPath}");
+                Directory.Delete(downloadedPath, true);
+                _logger.Info("Successfully cleaned up downloaded files");
+            }
+            catch (Exception cleanupEx)
+            {
+                _logger.Warn(cleanupEx, "Failed to clean up downloaded files, but installation was successful");
+            }
 
             if (string.IsNullOrWhiteSpace(_appArguments.ProgramToRunAfterInstallation))
             {

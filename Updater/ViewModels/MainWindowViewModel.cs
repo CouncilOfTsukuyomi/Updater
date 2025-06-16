@@ -2,9 +2,9 @@
 using System.Reactive;
 using System.Reactive.Linq;
 using System.Threading.Tasks;
+using CommonLib.Interfaces;
+using CommonLib.Models;
 using NLog;
-using PenumbraModForwarder.Common.Interfaces;
-using PenumbraModForwarder.Common.Models;
 using ReactiveUI;
 using Updater.Extensions;
 using Updater.Interfaces;

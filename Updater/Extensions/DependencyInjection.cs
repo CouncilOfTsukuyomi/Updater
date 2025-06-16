@@ -1,10 +1,10 @@
 ﻿using System;
 using System.IO;
+using CommonLib.Extensions;
+using CommonLib.Interfaces;
+using CommonLib.Services;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
-using PenumbraModForwarder.Common.Extensions;
-using PenumbraModForwarder.Common.Interfaces;
-using PenumbraModForwarder.Common.Services;
 using Updater.Interfaces;
 using Updater.Services;
 using Updater.ViewModels;
@@ -72,12 +72,12 @@ public static class DependencyInjection
             return;
         }
 
-        Logging.EnableSentry(sentryDns, "Updater");
+        MergedSentryLogging.MergeSentryLogging(sentryDns, "Updater");
     }
 
     public static void DisableSentryLogging()
     {
         Console.WriteLine("DisableSentryLogging");
-        Logging.DisableSentry("Updater");
+        MergedSentryLogging.DisableSentryLogging();
     }
 }

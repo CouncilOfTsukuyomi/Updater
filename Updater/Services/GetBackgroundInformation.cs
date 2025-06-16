@@ -1,7 +1,7 @@
 ﻿using System.Threading.Tasks;
+using CommonLib.Interfaces;
+using CommonLib.Models;
 using NLog;
-using PenumbraModForwarder.Common.Interfaces;
-using PenumbraModForwarder.Common.Models;
 using Updater.Interfaces;
 
 namespace Updater.Services;

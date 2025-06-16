@@ -2,10 +2,10 @@
 using System.Threading;
 using Avalonia;
 using Avalonia.ReactiveUI;
+using CommonLib.Interfaces;
+using CommonLib.Services;
 using Microsoft.Extensions.DependencyInjection;
 using NLog;
-using PenumbraModForwarder.Common.Interfaces;
-using PenumbraModForwarder.Common.Services;
 using Updater.Extensions;
 using Updater.Interfaces;
 using Updater.Services;
