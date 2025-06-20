@@ -7,7 +7,7 @@
         mc:Ignorable="d" d:DesignWidth="800" d:DesignHeight="450"
         x:Class="Updater.Views.MainWindow"
         x:DataType="vm:MainWindowViewModel"
-        Title="Penumbra Mod Forwarder - Updater"
+        Title="Atomos - Updater"
         Width="800"
         Height="500"
         TransparencyLevelHint="AcrylicBlur"
@@ -33,7 +33,7 @@
                     <ColumnDefinition Width="Auto" />
                 </Grid.ColumnDefinitions>
 
-                <TextBlock Text="Penumbra Mod Forwarder - Updater"
+                <TextBlock Text="Atomos - Updater"
                            VerticalAlignment="Center"
                            Margin="10,0"
                            Foreground="{StaticResource TextBrush}"
