@@ -78,6 +78,35 @@ public class MainWindowViewModel : ViewModelBase
         set => this.RaiseAndSetIfChanged(ref _updatedVersion, value);
     }
 
+    // Progress properties
+    private double _downloadProgress = 0;
+    public double DownloadProgress
+    {
+        get => _downloadProgress;
+        set => this.RaiseAndSetIfChanged(ref _downloadProgress, value);
+    }
+
+    private string _formattedSpeed = string.Empty;
+    public string FormattedSpeed
+    {
+        get => _formattedSpeed;
+        set => this.RaiseAndSetIfChanged(ref _formattedSpeed, value);
+    }
+
+    private string _formattedSize = string.Empty;
+    public string FormattedSize
+    {
+        get => _formattedSize;
+        set => this.RaiseAndSetIfChanged(ref _formattedSize, value);
+    }
+
+    private bool _isDownloading = false;
+    public bool IsDownloading
+    {
+        get => _isDownloading;
+        set => this.RaiseAndSetIfChanged(ref _isDownloading, value);
+    }
+
     private IDisposable? _imageTimer;
 
     public ReactiveCommand<Unit, Unit> UpdateCommand { get; }
@@ -140,34 +169,88 @@ public class MainWindowViewModel : ViewModelBase
     {
         try
         {
+            _logger.Info("=== UPDATE COMMAND EXECUTED ===");
             _logger.Debug("Update button clicked");
-            StatusText = "Downloading Update...";
+            
+            _logger.Info("Setting IsDownloading to true");
+            IsDownloading = true;
+            
+            // Reset progress indicators
+            _logger.Info("Resetting progress indicators");
+            DownloadProgress = 0;
+            FormattedSpeed = string.Empty;
+            FormattedSize = string.Empty;
+            StatusText = "Starting update...";
 
+            // Create progress reporter
+            _logger.Info("Creating progress reporter");
+            var progress = new Progress<DownloadProgress>(OnDownloadProgressChanged);
+
+            _logger.Info("Calling DownloadAndInstallAsync with version: {Version}", _numberedVersionCurrent);
             var (success, downloadPath) = await _downloadAndInstallUpdates
-                .DownloadAndInstallAsync(_numberedVersionCurrent);
+                .DownloadAndInstallAsync(_numberedVersionCurrent, progress);
+
+            _logger.Info("DownloadAndInstallAsync completed with success: {Success}", success);
 
             if (!success)
             {
+                _logger.Warn("Download failed");
                 StatusText = "Download Failed";
+                IsDownloading = false;
                 return;
             }
 
+            _logger.Info("Download successful, starting installation");
             StatusText = "Download Complete!";
             await Task.Delay(TimeSpan.FromSeconds(2));
-            StatusText = "Installing Updating...";
+            StatusText = "Installing Update...";
             var installed = await _installUpdate.StartInstallationAsync(downloadPath);
             if (installed)
             {
+                _logger.Info("Installation completed successfully");
                 StatusText = "Installation Complete!";
                 await Task.Delay(TimeSpan.FromSeconds(2));
                 Environment.Exit(0);
             }
+            else
+            {
+                _logger.Warn("Installation failed");
+                StatusText = "Installation Failed";
+                IsDownloading = false;
+            }
         }
         catch (Exception ex)
         {
-            _logger.Error(ex, ex.Message);
+            _logger.Error(ex, "Error in PerformUpdateAsync: {Message}", ex.Message);
             StatusText = "Update Failed";
+            IsDownloading = false;
         }
+    }
+
+    private void OnDownloadProgressChanged(DownloadProgress progress)
+    {
+        _logger.Debug("=== UI PROGRESS UPDATE ===");
+        _logger.Debug("Received progress - Percent: {Percent}%, Status: {Status}", progress.PercentComplete, progress.Status);
+        _logger.Debug("FormattedSpeed: {Speed}, FormattedSize: {Size}", progress.FormattedSpeed, progress.FormattedSize);
+        
+        // Update UI properties based on progress
+        _logger.Debug("Updating DownloadProgress from {Old} to {New}", DownloadProgress, progress.PercentComplete);
+        DownloadProgress = progress.PercentComplete;
+        
+        _logger.Debug("Updating FormattedSpeed from '{Old}' to '{New}'", FormattedSpeed, progress.FormattedSpeed);
+        FormattedSpeed = progress.FormattedSpeed;
+        
+        _logger.Debug("Updating FormattedSize from '{Old}' to '{New}'", FormattedSize, progress.FormattedSize);
+        FormattedSize = progress.FormattedSize;
+        
+        // Update status text with detailed information
+        if (!string.IsNullOrEmpty(progress.Status))
+        {
+            _logger.Debug("Updating StatusText from '{Old}' to '{New}'", StatusText, progress.Status);
+            StatusText = progress.Status;
+        }
+        
+        _logger.Debug("=== END UI PROGRESS UPDATE ===");
     }
 
     private async Task Begin()

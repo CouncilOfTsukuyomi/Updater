@@ -96,7 +96,7 @@
                     </Border>
                 </StackPanel>
 
-                <!-- Right column: text-based content -->
+                <!-- Right column: text-based content and progress -->
                 <StackPanel Grid.Column="1"
                             Margin="16,0,0,0"
                             VerticalAlignment="Center"
@@ -117,18 +117,55 @@
                             Width="120"
                             Background="{StaticResource AccentBrush}"
                             Foreground="{StaticResource TextBrush}"
-                            Command="{Binding UpdateCommand}" />
+                            Command="{Binding UpdateCommand}"
+                            IsEnabled="{Binding !IsDownloading}" />
+
+                    <!-- Progress section -->
+                    <StackPanel IsVisible="{Binding IsDownloading}" 
+                                Spacing="8" 
+                                Width="250">
+                        
+                        <!-- Progress bar -->
+                        <ProgressBar Value="{Binding DownloadProgress}" 
+                                     Maximum="100" 
+                                     Height="20" 
+                                     Background="Gray"
+                                     Foreground="{StaticResource AccentBrush}" />
+                        
+                        <!-- Progress percentage -->
+                        <TextBlock Text="{Binding DownloadProgress, StringFormat='{}{0:F1}%'}" 
+                                   Foreground="{StaticResource TextBrush}"
+                                   HorizontalAlignment="Center"
+                                   FontSize="14"
+                                   FontWeight="SemiBold"/>
+                        
+                        <!-- Download size info -->
+                        <TextBlock Text="{Binding FormattedSize}" 
+                                   Foreground="{StaticResource TextBrush}"
+                                   HorizontalAlignment="Center"
+                                   FontSize="12"
+                                   IsVisible="{Binding FormattedSize, Converter={x:Static StringConverters.IsNotNullOrEmpty}}"/>
+                                   
+                        <!-- Download speed -->
+                        <TextBlock Text="{Binding FormattedSpeed}" 
+                                   Foreground="{StaticResource TextBrush}"
+                                   HorizontalAlignment="Center"
+                                   FontSize="12"
+                                   IsVisible="{Binding FormattedSpeed, Converter={x:Static StringConverters.IsNotNullOrEmpty}}"/>
+                    </StackPanel>
                 </StackPanel>
             </Grid>
         </Border>
 
         <!-- Bottom status bar (Row 2) -->
         <Border Grid.Row="2"
-                Height="80">
+                Height="80"
+                Background="#1A1A1A">
             <TextBlock Text="{Binding StatusText}"
                        VerticalAlignment="Center"
                        Margin="16,0"
-                       Foreground="{StaticResource TextBrush}"/>
+                       Foreground="{StaticResource TextBrush}"
+                       FontSize="14"/>
         </Border>
 
         <!-- Define row layout -->
