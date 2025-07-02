@@ -1,4 +1,5 @@
-﻿using System;
+﻿
+using System;
 using System.Reactive;
 using System.Reactive.Linq;
 using System.Threading.Tasks;
@@ -130,8 +131,7 @@ public class MainWindowViewModel : ViewModelBase
         _appArguments = appArguments;
         _configurationService = configurationService;
         _installUpdate = installUpdate;
-
-        // Respect the enableSentry command-line argument if present
+        
         if (_appArguments.EnableSentry)
         {
             DependencyInjection.EnableSentryLogging();
@@ -140,8 +140,7 @@ public class MainWindowViewModel : ViewModelBase
         {
             DependencyInjection.DisableSentryLogging();
         }
-
-        // Extract version from first arg if present
+        
         var externalCurrentVersion = _appArguments.Args.Length > 0
             ? _appArguments.Args[0]
             : null;
@@ -150,8 +149,7 @@ public class MainWindowViewModel : ViewModelBase
         {
             _numberedVersionCurrent = externalCurrentVersion;
         }
-
-        // Extract repository from second arg
+        
         _repository = _appArguments.Args.Length > 1
             ? _appArguments.Args[1]
             : string.Empty;
@@ -162,7 +160,7 @@ public class MainWindowViewModel : ViewModelBase
 
         Begin();
 
-        StatusText = "Waiting for Update...";
+        StatusText = "Loading...";
     }
 
     private async Task PerformUpdateAsync()
@@ -170,19 +168,17 @@ public class MainWindowViewModel : ViewModelBase
         try
         {
             _logger.Info("=== UPDATE COMMAND EXECUTED ===");
-            _logger.Debug("Update button clicked");
+            _logger.Debug("Update process started");
             
             _logger.Info("Setting IsDownloading to true");
             IsDownloading = true;
             
-            // Reset progress indicators
             _logger.Info("Resetting progress indicators");
             DownloadProgress = 0;
             FormattedSpeed = string.Empty;
             FormattedSize = string.Empty;
             StatusText = "Starting update...";
-
-            // Create progress reporter
+            
             _logger.Info("Creating progress reporter");
             var progress = new Progress<DownloadProgress>(OnDownloadProgressChanged);
 
@@ -233,7 +229,6 @@ public class MainWindowViewModel : ViewModelBase
         _logger.Debug("Received progress - Percent: {Percent}%, Status: {Status}", progress.PercentComplete, progress.Status);
         _logger.Debug("FormattedSpeed: {Speed}, FormattedSize: {Size}", progress.FormattedSpeed, progress.FormattedSize);
         
-        // Update UI properties based on progress
         _logger.Debug("Updating DownloadProgress from {Old} to {New}", DownloadProgress, progress.PercentComplete);
         DownloadProgress = progress.PercentComplete;
         
@@ -243,7 +238,6 @@ public class MainWindowViewModel : ViewModelBase
         _logger.Debug("Updating FormattedSize from '{Old}' to '{New}'", FormattedSize, progress.FormattedSize);
         FormattedSize = progress.FormattedSize;
         
-        // Update status text with detailed information
         if (!string.IsNullOrEmpty(progress.Status))
         {
             _logger.Debug("Updating StatusText from '{Old}' to '{New}'", StatusText, progress.Status);
@@ -266,15 +260,24 @@ public class MainWindowViewModel : ViewModelBase
             BackgroundImages = UpdaterInfoJson.Backgrounds.Images;
         }
         StartImageRotation();
-
-        // Pass the prerelease setting if your IUpdateService can handle it
+        
         var latestVersion = await _updateService.GetMostRecentVersionAsync(_repository);
         UpdatedVersion = $"Updated Version: {latestVersion}";
         _numberedVersionUpdated = latestVersion;
-
+        
         if (!CurrentVersion.Contains(latestVersion))
         {
-            StatusText = "Update Needed...";
+            _logger.Info("Update available - Current: {Current}, Latest: {Latest}", _numberedVersionCurrent, latestVersion);
+            StatusText = "Update Available - Starting automatically...";
+            
+            await Task.Delay(TimeSpan.FromSeconds(2));
+            
+            _ = Task.Run(async () => await PerformUpdateAsync());
+        }
+        else
+        {
+            _logger.Info("No update needed - versions match");
+            StatusText = "Up to date!";
         }
     }
 
