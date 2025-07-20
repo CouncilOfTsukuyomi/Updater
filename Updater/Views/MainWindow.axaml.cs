@@ -21,9 +21,9 @@ public partial class MainWindow : Window
         };
 
         // Direct event handling for window controls
-        this.Get<Button>("MinimizeButton").Click += (s, e) =>
+        this.Get<Button>("MinimiseButton").Click += (s, e) =>
         {
-            _logger.Info("Minimize button clicked");
+            _logger.Info("Minimise button clicked");
             WindowState = WindowState.Minimized;
         };
 

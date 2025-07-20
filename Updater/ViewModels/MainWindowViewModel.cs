@@ -1,7 +1,12 @@
 ﻿
 using System;
+using System.Collections.Generic;
+using System.Diagnostics;
+using System.IO;
+using System.Linq;
 using System.Reactive;
 using System.Reactive.Linq;
+using System.Runtime.InteropServices;
 using System.Threading.Tasks;
 using CommonLib.Interfaces;
 using CommonLib.Models;
@@ -79,7 +84,20 @@ public class MainWindowViewModel : ViewModelBase
         set => this.RaiseAndSetIfChanged(ref _updatedVersion, value);
     }
 
-    // Progress properties
+    private string _applicationName = string.Empty;
+    public string ApplicationName
+    {
+        get => _applicationName;
+        set => this.RaiseAndSetIfChanged(ref _applicationName, value);
+    }
+
+    private List<VersionInfo> _allVersions = new();
+    public List<VersionInfo> AllVersions
+    {
+        get => _allVersions;
+        set => this.RaiseAndSetIfChanged(ref _allVersions, value);
+    }
+
     private double _downloadProgress = 0;
     public double DownloadProgress
     {
@@ -108,12 +126,66 @@ public class MainWindowViewModel : ViewModelBase
         set => this.RaiseAndSetIfChanged(ref _isDownloading, value);
     }
 
+    private string _estimatedTimeRemaining = string.Empty;
+    public string EstimatedTimeRemaining
+    {
+        get => _estimatedTimeRemaining;
+        set => this.RaiseAndSetIfChanged(ref _estimatedTimeRemaining, value);
+    }
+
+    private string _networkStatus = "Connected";
+    public string NetworkStatus
+    {
+        get => _networkStatus;
+        set => this.RaiseAndSetIfChanged(ref _networkStatus, value);
+    }
+
+    private string _operatingSystem = string.Empty;
+    public string OperatingSystem
+    {
+        get => _operatingSystem;
+        set => this.RaiseAndSetIfChanged(ref _operatingSystem, value);
+    }
+
+    private string _systemArchitecture = string.Empty;
+    public string SystemArchitecture
+    {
+        get => _systemArchitecture;
+        set => this.RaiseAndSetIfChanged(ref _systemArchitecture, value);
+    }
+
+    private string _availableDiskSpace = string.Empty;
+    public string AvailableDiskSpace
+    {
+        get => _availableDiskSpace;
+        set => this.RaiseAndSetIfChanged(ref _availableDiskSpace, value);
+    }
+
+    private string _installationPath = string.Empty;
+    public string InstallationPath
+    {
+        get => _installationPath;
+        set => this.RaiseAndSetIfChanged(ref _installationPath, value);
+    }
+
     private IDisposable? _imageTimer;
 
     public ReactiveCommand<Unit, Unit> UpdateCommand { get; }
+    public ReactiveCommand<Unit, Unit> ViewReleaseNotesCommand { get; }
 
     private string _numberedVersionCurrent = string.Empty;
     private string _numberedVersionUpdated = string.Empty;
+
+    public bool HasVersions => AllVersions.Count > 0;
+    public bool HasMultipleVersions => AllVersions.Count > 1;
+    public int VersionCount => AllVersions.Count;
+    public int TotalChangeCount => AllVersions.Sum(v => v.Changes.Count);
+    
+    public string ChangelogTitle => HasMultipleVersions 
+        ? $"What's New ({VersionCount} versions, {TotalChangeCount} changes):"
+        : AllVersions.FirstOrDefault()?.Version != null 
+            ? $"What's New in {CleanVersionString(AllVersions.First().Version)}:"
+            : "What's New:";
 
     public MainWindowViewModel(
         IGetBackgroundInformation getBackgroundInformation,
@@ -153,14 +225,123 @@ public class MainWindowViewModel : ViewModelBase
         _repository = _appArguments.Args.Length > 1
             ? _appArguments.Args[1]
             : string.Empty;
+
+        ApplicationName = ExtractApplicationName(_repository);
         
         CurrentVersion = $"Current Version: v{_numberedVersionCurrent}";
 
         UpdateCommand = ReactiveCommand.CreateFromTask(PerformUpdateAsync);
+        ViewReleaseNotesCommand = ReactiveCommand.Create(ViewReleaseNotes);
 
+        InitializeSystemInformation();
         Begin();
 
         StatusText = "Loading...";
+    }
+
+    private void InitializeSystemInformation()
+    {
+        try
+        {
+            if (RuntimeInformation.IsOSPlatform(OSPlatform.Windows))
+            {
+                OperatingSystem = $"Windows {Environment.OSVersion.Version}";
+            }
+            else if (RuntimeInformation.IsOSPlatform(OSPlatform.Linux))
+            {
+                OperatingSystem = "Linux";
+            }
+            else if (RuntimeInformation.IsOSPlatform(OSPlatform.OSX))
+            {
+                OperatingSystem = "macOS";
+            }
+
+            SystemArchitecture = RuntimeInformation.OSArchitecture.ToString();
+
+            try
+            {
+                var drive = new DriveInfo(Path.GetPathRoot(Environment.CurrentDirectory) ?? "C:\\");
+                var freeSpaceGB = drive.AvailableFreeSpace / (1024 * 1024 * 1024);
+                AvailableDiskSpace = $"{freeSpaceGB:F1} GB available";
+            }
+            catch
+            {
+                AvailableDiskSpace = "Unknown";
+            }
+
+            InstallationPath = Environment.CurrentDirectory;
+        }
+        catch (Exception ex)
+        {
+            _logger.Error(ex, "Failed to initialize system information");
+        }
+    }
+
+    private void ViewReleaseNotes()
+    {
+        try
+        {
+            _logger.Info("Opening release notes for repository: {Repository}", _repository);
+        
+            if (string.IsNullOrWhiteSpace(_repository))
+            {
+                _logger.Warn("Repository is empty, cannot open release notes");
+                return;
+            }
+        
+            var releaseUrl = $"https://github.com/{_repository}/releases";
+            
+            if (RuntimeInformation.IsOSPlatform(OSPlatform.Windows))
+            {
+                Process.Start(new ProcessStartInfo
+                {
+                    FileName = releaseUrl,
+                    UseShellExecute = true
+                });
+            }
+            else if (RuntimeInformation.IsOSPlatform(OSPlatform.Linux))
+            {
+                Process.Start("xdg-open", releaseUrl);
+            }
+            else if (RuntimeInformation.IsOSPlatform(OSPlatform.OSX))
+            {
+                Process.Start("open", releaseUrl);
+            }
+        
+            _logger.Info("Successfully opened release notes URL: {Url}", releaseUrl);
+        }
+        catch (Exception ex)
+        {
+            _logger.Error(ex, "Failed to open release notes");
+        }
+    }
+
+    private string ExtractApplicationName(string repository)
+    {
+        if (string.IsNullOrWhiteSpace(repository))
+            return "Unknown Application";
+
+        var lastSlashIndex = repository.LastIndexOf('/');
+        if (lastSlashIndex >= 0 && lastSlashIndex < repository.Length - 1)
+        {
+            return repository.Substring(lastSlashIndex + 1);
+        }
+
+        return repository;
+    }
+
+    private static string CleanVersionString(string version)
+    {
+        if (string.IsNullOrWhiteSpace(version))
+            return version;
+            
+        var cleaned = version.Trim();
+        if (cleaned.StartsWith("v", StringComparison.OrdinalIgnoreCase))
+        {
+            cleaned = cleaned.Substring(1);
+        }
+
+        return cleaned;
     }
 
     private async Task PerformUpdateAsync()
@@ -178,6 +359,7 @@ public class MainWindowViewModel : ViewModelBase
             FormattedSpeed = string.Empty;
             FormattedSize = string.Empty;
             StatusText = "Starting update...";
+            EstimatedTimeRemaining = string.Empty;
             
             _logger.Info("Creating progress reporter");
             var progress = new Progress<DownloadProgress>(OnDownloadProgressChanged);
@@ -243,6 +425,15 @@ public class MainWindowViewModel : ViewModelBase
             _logger.Debug("Updating StatusText from '{Old}' to '{New}'", StatusText, progress.Status);
             StatusText = progress.Status;
         }
+
+        if (progress.PercentComplete > 0 && !string.IsNullOrEmpty(progress.FormattedSpeed))
+        {
+            var remainingPercent = 100 - progress.PercentComplete;
+            if (remainingPercent > 0)
+            {
+                EstimatedTimeRemaining = $"~{remainingPercent * 2:F0}s remaining";
+            }
+        }
         
         _logger.Debug("=== END UI PROGRESS UPDATE ===");
     }
@@ -250,7 +441,7 @@ public class MainWindowViewModel : ViewModelBase
     private async Task Begin()
     {
         _logger.Debug("Begin() called for MainWindowViewModel");
-        
+    
         var (info, updater) = await _getBackgroundInformation.GetResources();
         InfoJson = info;
         UpdaterInfoJson = updater;
@@ -260,24 +451,63 @@ public class MainWindowViewModel : ViewModelBase
             BackgroundImages = UpdaterInfoJson.Backgrounds.Images;
         }
         StartImageRotation();
-        
+    
         var latestVersion = await _updateService.GetMostRecentVersionAsync(_repository);
         UpdatedVersion = $"Updated Version: {latestVersion}";
         _numberedVersionUpdated = latestVersion;
-        
+    
         if (!CurrentVersion.Contains(latestVersion))
         {
             _logger.Info("Update available - Current: {Current}, Latest: {Latest}", _numberedVersionCurrent, latestVersion);
-            StatusText = "Update Available - Starting automatically...";
-            
-            await Task.Delay(TimeSpan.FromSeconds(2));
-            
-            _ = Task.Run(async () => await PerformUpdateAsync());
+        
+            await LoadChangelogAsync();
+        
+            StatusText = "Update Available - Click 'Update Now' to begin";
         }
         else
         {
             _logger.Info("No update needed - versions match");
             StatusText = "Up to date!";
+        }
+    }
+
+    private async Task LoadChangelogAsync()
+    {
+        try
+        {
+            _logger.Debug("Loading changelog information");
+        
+            var allVersionsSinceCurrentValue = await _updateService.GetAllVersionInfoSinceCurrentAsync(_numberedVersionCurrent, _repository);
+        
+            if (allVersionsSinceCurrentValue?.Any() == true)
+            {
+                AllVersions = allVersionsSinceCurrentValue
+                    .OrderByDescending(v => v.PublishedAt)
+                    .ToList();
+            
+                _logger.Debug("Retrieved and sorted {VersionCount} versions with {TotalChanges} total changes", 
+                    AllVersions.Count, 
+                    AllVersions.Sum(v => v.Changes.Count));
+            }
+            else
+            {
+                var versionInfo = await _updateService.GetMostRecentVersionInfoAsync(_repository);
+                if (versionInfo != null)
+                {
+                    AllVersions = new List<VersionInfo> { versionInfo };
+                    _logger.Debug("Fallback: Retrieved single version info with {ChangeCount} changes", versionInfo.Changes.Count);
+                }
+            }
+        
+            this.RaisePropertyChanged(nameof(HasVersions));
+            this.RaisePropertyChanged(nameof(HasMultipleVersions));
+            this.RaisePropertyChanged(nameof(VersionCount));
+            this.RaisePropertyChanged(nameof(TotalChangeCount));
+            this.RaisePropertyChanged(nameof(ChangelogTitle));
+        }
+        catch (Exception ex)
+        {
+            _logger.Error(ex, "Failed to load changelog information");
         }
     }
 

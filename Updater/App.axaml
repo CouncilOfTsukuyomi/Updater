@@ -5,13 +5,7 @@
     <Application.DataTemplates>
         <updater:ViewLocator/>
     </Application.DataTemplates>
-  
-    <Application.Styles>
-        <FluentTheme />
-        <StyleInclude Source="/Styles/Elements/Button.axaml"/>
-        <StyleInclude Source="/Styles/Elements/TitleBar.axaml"/>
-    </Application.Styles>
-             
+    
      <Application.Resources>
          <ResourceDictionary>
              <ResourceDictionary.MergedDictionaries>
@@ -20,4 +14,10 @@
              </ResourceDictionary.MergedDictionaries>
          </ResourceDictionary>
      </Application.Resources>
+    
+    <Application.Styles>
+        <FluentTheme />
+        <StyleInclude Source="/Styles/Elements/Button.axaml"/>
+        <StyleInclude Source="/Styles/Elements/MainWindowStyles.axaml"/>
+    </Application.Styles>
 </Application>

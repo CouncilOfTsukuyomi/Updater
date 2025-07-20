@@ -1,16 +1,15 @@
-
 <Window xmlns="https://github.com/avaloniaui"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
         xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
         xmlns:asyncImageLoader="clr-namespace:AsyncImageLoader;assembly=AsyncImageLoader.Avalonia"
         xmlns:vm="clr-namespace:Updater.ViewModels"
-        mc:Ignorable="d" d:DesignWidth="900" d:DesignHeight="600"
+        mc:Ignorable="d" d:DesignWidth="1200" d:DesignHeight="800"
         x:Class="Updater.Views.MainWindow"
         x:DataType="vm:MainWindowViewModel"
-        Title="Atomos Updater"
-        Width="900"
-        Height="600"
+        Title="Council Of Tsukuyomi Updater"
+        Width="1200"
+        Height="800"
         Background="{StaticResource BackgroundBrush}"
         ExtendClientAreaToDecorationsHint="True"
         ExtendClientAreaChromeHints="NoChrome"
@@ -21,209 +20,267 @@
         <vm:MainWindowViewModel/>
     </Design.DataContext>
 
-    <!-- Main container -->
-    <Border Background="{StaticResource BackgroundBrush}" 
-            CornerRadius="8"
-            BorderBrush="{StaticResource BorderBrush}"
-            BorderThickness="1">
-        
+    <Border Classes="mainBorder">
         <Grid>
             <Grid.RowDefinitions>
                 <RowDefinition Height="50" />
                 <RowDefinition Height="*" />
-                <RowDefinition Height="Auto" />
+                <RowDefinition Height="70" />
             </Grid.RowDefinitions>
 
-            <!-- Purple Title Bar -->
-            <Border Grid.Row="0" 
-                    Background="{StaticResource SecondaryBrush}"
-                    CornerRadius="8,8,0,0">
+            <!-- Title Bar -->
+            <Border Grid.Row="0" Height="40" Background="{StaticResource SecondaryBrush}">
                 <Grid x:Name="TitleBar" Classes="titleBar">
-                    <Grid.ColumnDefinitions>
-                        <ColumnDefinition Width="*" />
-                        <ColumnDefinition Width="Auto" />
-                    </Grid.ColumnDefinitions>
-
-                    <TextBlock Text="Atomos Updater"
-                               VerticalAlignment="Center"
-                               Margin="20,0"
-                               Foreground="{StaticResource TextBrush}"
-                               FontSize="14"
-                               FontWeight="Medium" />
-
-                    <StackPanel Grid.Column="1" 
-                                Orientation="Horizontal" 
-                                Margin="0,0,8,0">
-                        <Button Name="MinimizeButton"
-                                Classes="windowControl"
-                                Width="32"
-                                Height="32"
-                                Background="Transparent"
-                                HorizontalContentAlignment="Center"
-                                VerticalContentAlignment="Center">
-                            <Path Data="M 8,15 L 20,15" 
-                                  Stroke="{StaticResource TextBrush}" 
-                                  StrokeThickness="1.5"
-                                  Opacity="0.8" />
-                        </Button>
-                        <Button Name="CloseButton"
-                                Classes="windowControl"
-                                Width="32"
-                                Height="32"
-                                Background="Transparent"
-                                HorizontalContentAlignment="Center"
-                                VerticalContentAlignment="Center">
-                            <Path Data="M 10,10 L 18,18 M 10,18 L 18,10" 
-                                  Stroke="{StaticResource TextBrush}" 
-                                  StrokeThickness="1.5"
-                                  Opacity="0.8" />
-                        </Button>
-                    </StackPanel>
-                </Grid>
-            </Border>
-
-            <!-- Main Content Area -->
-            <Grid Grid.Row="1" Margin="32">
-                <Grid.ColumnDefinitions>
-                    <ColumnDefinition Width="1.6*" />
-                    <ColumnDefinition Width="1*" />
-                </Grid.ColumnDefinitions>
-
-                <!-- Left: Hero Image -->
-                <Border Grid.Column="0"
-                        CornerRadius="6"
-                        ClipToBounds="True"
-                        Background="{StaticResource SurfaceBrush}"
-                        Margin="0,0,24,0">
-                    
-                    <TransitioningContentControl Content="{Binding CurrentImage}">
-                        <TransitioningContentControl.PageTransition>
-                            <CrossFade Duration="0:0:1.5" />
-                        </TransitioningContentControl.PageTransition>
-
-                        <TransitioningContentControl.ContentTemplate>
-                            <DataTemplate x:DataType="x:String">
-                                <asyncImageLoader:AdvancedImage 
-                                    Source="{Binding}"
-                                    Stretch="UniformToFill"
-                                    HorizontalAlignment="Center"
-                                    VerticalAlignment="Center"
-                                    Opacity="0.95"/>
-                            </DataTemplate>
-                        </TransitioningContentControl.ContentTemplate>
-                    </TransitioningContentControl>
-                </Border>
-
-                <!-- Right: Update Information -->
-                <StackPanel Grid.Column="1"
-                            VerticalAlignment="Center"
-                            Spacing="20">
-
-                    <!-- Version Info Card -->
-                    <Border Background="{StaticResource CardBackgroundBrush}"
-                            CornerRadius="6"
-                            Padding="20">
-                        <StackPanel Spacing="12">
-                            <TextBlock Text="Version Information"
-                                       Foreground="{StaticResource TextBrush}"
-                                       FontSize="16"
-                                       FontWeight="Medium"/>
-                            
-                            <StackPanel Spacing="6">
-                                <TextBlock Text="{Binding CurrentVersion}"
-                                           Foreground="{StaticResource TextBrush}"
-                                           FontSize="13"
-                                           Opacity="0.8"/>
-                                <TextBlock Text="{Binding UpdatedVersion}"
-                                           Foreground="{StaticResource PrimaryBrush}"
-                                           FontSize="13"
-                                           FontWeight="Medium"/>
-                            </StackPanel>
-                        </StackPanel>
-                    </Border>
-
-                    <!-- Progress Card -->
-                    <Border Background="{StaticResource CardBackgroundBrush}"
-                            CornerRadius="6"
-                            Padding="20"
-                            IsVisible="{Binding IsDownloading}">
-                        <StackPanel Spacing="12">
-                            <TextBlock Text="Update Progress"
-                                       Foreground="{StaticResource TextBrush}"
-                                       FontSize="16"
-                                       FontWeight="Medium"/>
-                            
-                            <!-- Clean Progress Bar -->
-                            <ProgressBar Value="{Binding DownloadProgress}" 
-                                         Maximum="100" 
-                                         Height="6"
-                                         CornerRadius="3"
-                                         Background="{StaticResource SurfaceBrush}"
-                                         Foreground="{StaticResource PrimaryBrush}"
-                                         BorderThickness="0"/>
-                            
-                            <!-- Progress Details -->
-                            <Grid>
-                                <Grid.ColumnDefinitions>
-                                    <ColumnDefinition Width="*"/>
-                                    <ColumnDefinition Width="Auto"/>
-                                </Grid.ColumnDefinitions>
-                                
-                                <TextBlock Grid.Column="0"
-                                           Text="{Binding DownloadProgress, StringFormat='{}{0:F1}%'}"
-                                           Foreground="{StaticResource TextBrush}"
-                                           FontSize="13"
-                                           FontWeight="Medium"/>
-                                
-                                <TextBlock Grid.Column="1"
-                                           Text="{Binding FormattedSpeed}"
-                                           Foreground="{StaticResource TextBrush}"
-                                           FontSize="12"
-                                           Opacity="0.7"
-                                           IsVisible="{Binding FormattedSpeed, Converter={x:Static StringConverters.IsNotNullOrEmpty}}"/>
-                            </Grid>
-                            
-                            <TextBlock Text="{Binding FormattedSize}"
-                                       Foreground="{StaticResource TextBrush}"
-                                       FontSize="11"
-                                       HorizontalAlignment="Center"
-                                       Opacity="0.6"
-                                       IsVisible="{Binding FormattedSize, Converter={x:Static StringConverters.IsNotNullOrEmpty}}"/>
-                        </StackPanel>
-                    </Border>
-
-                </StackPanel>
-            </Grid>
-
-            <!-- Clean Status Bar -->
-            <Border Grid.Row="2"
-                    Background="{StaticResource SurfaceBrush}"
-                    CornerRadius="0,0,8,8"
-                    Padding="20,12">
-                <Grid>
                     <Grid.ColumnDefinitions>
                         <ColumnDefinition Width="*"/>
                         <ColumnDefinition Width="Auto"/>
                     </Grid.ColumnDefinitions>
                     
-                    <TextBlock Grid.Column="0"
-                               Text="{Binding StatusText}"
-                               Foreground="{StaticResource TextBrush}"
-                               FontSize="13"
-                               VerticalAlignment="Center"
-                               Opacity="0.9"/>
+                    <StackPanel Grid.Column="0" Orientation="Horizontal" VerticalAlignment="Center">
+                        <TextBlock Text="Council Of Tsukuyomi Updater" Classes="titleText"/>
+                    </StackPanel>
+
+                    <StackPanel Grid.Column="1" Orientation="Horizontal">
+                        <Button Name="MinimiseButton" 
+                                Classes="windowControl" 
+                                ToolTip.Tip="Minimise"
+                                Cursor="Hand">
+                            <Path Width="12" Height="2" Stretch="None">
+                                <Path.Data>
+                                    <StreamGeometry>
+                                        M 0,0 L 12,0
+                                    </StreamGeometry>
+                                </Path.Data>
+                            </Path>
+                        </Button>
+
+                        <Button Name="CloseButton" 
+                                Classes="windowControl closeButton"
+                                ToolTip.Tip="Close"
+                                Cursor="Hand">
+                            <Path Width="12" Height="12" Stretch="None">
+                                <Path.Data>
+                                    <StreamGeometry>
+                                        M 0,0 L 12,12 M 0,12 L 12,0
+                                    </StreamGeometry>
+                                </Path.Data>
+                            </Path>
+                        </Button>
+                    </StackPanel>
+                </Grid>
+            </Border>
+
+            <!-- Main Content -->
+            <Grid Grid.Row="1" Margin="24">
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="1.8*" />
+                    <ColumnDefinition Width="20" />
+                    <ColumnDefinition Width="1.2*" />
+                </Grid.ColumnDefinitions>
+
+                <!-- Left Column -->
+                <Grid Grid.Column="0">
+                    <Grid.RowDefinitions>
+                        <RowDefinition Height="280" />
+                        <RowDefinition Height="20" />
+                        <RowDefinition Height="*" />
+                    </Grid.RowDefinitions>
                     
-                    <!-- Minimal loading indicator -->
-                    <Ellipse Grid.Column="1"
-                             Width="12"
-                             Height="12"
-                             Fill="{StaticResource PrimaryBrush}"
-                             IsVisible="{Binding IsDownloading}"
-                             Opacity="0.7"/>
+                    <!-- Image Display -->
+                    <Border Grid.Row="0" Classes="imageContainer">
+                        <TransitioningContentControl Content="{Binding CurrentImage}">
+                            <TransitioningContentControl.PageTransition>
+                                <CrossFade Duration="0:0:1.5" />
+                            </TransitioningContentControl.PageTransition>
+
+                            <TransitioningContentControl.ContentTemplate>
+                                <DataTemplate x:DataType="x:String">
+                                    <asyncImageLoader:AdvancedImage 
+                                        Source="{Binding}"
+                                        Stretch="Uniform"
+                                        HorizontalAlignment="Center"
+                                        VerticalAlignment="Center"
+                                        Opacity="0.95"/>
+                                </DataTemplate>
+                            </TransitioningContentControl.ContentTemplate>
+                        </TransitioningContentControl>
+                    </Border>
+
+                    <!-- Changelog -->
+                    <Border Grid.Row="2" Classes="changelogCard" IsVisible="{Binding HasVersions}">
+                        <Grid RowDefinitions="Auto,*,Auto">
+                            <TextBlock Grid.Row="0" Text="{Binding ChangelogTitle}" Classes="cardTitle" />
+                            
+                            <ScrollViewer Grid.Row="1" Classes="changelogScroll">
+                                <ItemsControl ItemsSource="{Binding AllVersions}">
+                                    <ItemsControl.ItemTemplate>
+                                        <DataTemplate>
+                                            <Border Classes="versionContainer">
+                                                <StackPanel Spacing="12">
+                                                    <Border Classes="versionHeader">
+                                                        <Grid ColumnDefinitions="*,Auto">
+                                                            <TextBlock Grid.Column="0" Text="{Binding Version}" Classes="versionTitle" />
+                                                            <TextBlock Grid.Column="1" Text="{Binding PublishedAt, StringFormat='{}{0:MMM dd, yyyy}'}" Classes="versionDate" />
+                                                        </Grid>
+                                                    </Border>
+                                                    
+                                                    <ItemsControl ItemsSource="{Binding Changes}" Classes="changesList">
+                                                        <ItemsControl.ItemTemplate>
+                                                            <DataTemplate>
+                                                                <StackPanel Orientation="Horizontal" Classes="changeItem">
+                                                                    <Border Classes="changeBullet" />
+                                                                    <TextBlock Text="{Binding CleanDescription}" Classes="changeText" />
+                                                                </StackPanel>
+                                                            </DataTemplate>
+                                                        </ItemsControl.ItemTemplate>
+                                                    </ItemsControl>
+                                                </StackPanel>
+                                            </Border>
+                                        </DataTemplate>
+                                    </ItemsControl.ItemTemplate>
+                                </ItemsControl>
+                            </ScrollViewer>
+
+                            <Border Grid.Row="2" Classes="changelogSummary">
+                                <TextBlock Classes="summaryText">
+                                    <TextBlock.Text>
+                                        <MultiBinding StringFormat="{}{0} versions • {1} changes total">
+                                            <Binding Path="VersionCount" />
+                                            <Binding Path="TotalChangeCount" />
+                                        </MultiBinding>
+                                    </TextBlock.Text>
+                                </TextBlock>
+                            </Border>
+                        </Grid>
+                    </Border>
+                </Grid>
+
+                <!-- Right Column -->
+                <Grid Grid.Column="2">
+                    <Grid.RowDefinitions>
+                        <RowDefinition Height="Auto" />
+                        <RowDefinition Height="Auto" />
+                        <RowDefinition Height="Auto" />
+                        <RowDefinition Height="*" />
+                    </Grid.RowDefinitions>
+
+                    <!-- Application Header with Actions -->
+                    <Border Grid.Row="0" Classes="headerCard" Margin="0,0,0,16">
+                        <StackPanel Spacing="16">
+                            <StackPanel Spacing="12">
+                                <TextBlock Text="{Binding ApplicationName}" Classes="appTitle" />
+                                <TextBlock Text="Application Update" Classes="appSubtitle" />
+                            </StackPanel>
+                            
+                            <!-- Quick Actions (when not downloading) -->
+                            <StackPanel Spacing="8" IsVisible="{Binding !IsDownloading}">
+                                <Button Classes="actionButton primary" Command="{Binding UpdateCommand}">
+                                    <StackPanel Orientation="Horizontal" Spacing="8">
+                                        <TextBlock Text="Update Now" />
+                                    </StackPanel>
+                                </Button>
+                                
+                                <Button Classes="actionButton secondary" Command="{Binding ViewReleaseNotesCommand}">
+                                    <StackPanel Orientation="Horizontal" Spacing="8">
+                                        <TextBlock Text="📄" />
+                                        <TextBlock Text="View Release Notes" />
+                                    </StackPanel>
+                                </Button>
+                            </StackPanel>
+                            
+                            <!-- Update Progress (when downloading) -->
+                            <StackPanel Spacing="12" IsVisible="{Binding IsDownloading}">
+                                <ProgressBar Value="{Binding DownloadProgress}" Classes="updateProgress" />
+                                
+                                <Grid ColumnDefinitions="*,Auto">
+                                    <TextBlock Grid.Column="0" Text="{Binding DownloadProgress, StringFormat='{}{0:F1}%'}" Classes="progressPercent" />
+                                    <TextBlock Grid.Column="1" Text="{Binding FormattedSpeed}" Classes="progressSpeed" />
+                                </Grid>
+                                
+                                <TextBlock Text="{Binding FormattedSize}" Classes="progressSize" />
+                                
+                                <TextBlock Text="{Binding EstimatedTimeRemaining}" Classes="progressEta" 
+                                           IsVisible="{Binding EstimatedTimeRemaining, Converter={x:Static StringConverters.IsNotNullOrEmpty}}" />
+                            </StackPanel>
+                        </StackPanel>
+                    </Border>
+
+                    <!-- Version Information -->
+                    <Border Grid.Row="1" Classes="infoCard" Margin="0,0,0,16">
+                        <StackPanel Spacing="16">
+                            <TextBlock Text="Version Information" Classes="cardTitle" />
+                            
+                            <StackPanel Spacing="8">
+                                <Border Classes="currentVersionBadge">
+                                    <TextBlock Text="{Binding CurrentVersion}" Classes="versionText" />
+                                </Border>
+                                
+                                <Border Classes="updatedVersionBadge">
+                                    <TextBlock Text="{Binding UpdatedVersion}" Classes="versionText" />
+                                </Border>
+                            </StackPanel>
+                        </StackPanel>
+                    </Border>
+
+                    <!-- Scrollable System Information -->
+                    <ScrollViewer Grid.Row="3" VerticalScrollBarVisibility="Auto">
+                        <Border Classes="infoCard">
+                            <StackPanel Spacing="16">
+                                <TextBlock Text="System Information" Classes="cardTitle" />
+                                
+                                <StackPanel Spacing="12">
+                                    <Grid ColumnDefinitions="Auto,*" Classes="detailRow">
+                                        <TextBlock Grid.Column="0" Text="💻 OS:" Classes="detailLabel" />
+                                        <TextBlock Grid.Column="1" Text="{Binding OperatingSystem}" Classes="detailValue" />
+                                    </Grid>
+                                    
+                                    <Grid ColumnDefinitions="Auto,*" Classes="detailRow">
+                                        <TextBlock Grid.Column="0" Text="⚙️ Architecture:" Classes="detailLabel" />
+                                        <TextBlock Grid.Column="1" Text="{Binding SystemArchitecture}" Classes="detailValue" />
+                                    </Grid>
+                                    
+                                    <Grid ColumnDefinitions="Auto,*" Classes="detailRow">
+                                        <TextBlock Grid.Column="0" Text="💾 Free Space:" Classes="detailLabel" />
+                                        <TextBlock Grid.Column="1" Text="{Binding AvailableDiskSpace}" Classes="detailValue" />
+                                    </Grid>
+                                    
+                                    <Grid ColumnDefinitions="Auto,*" Classes="detailRow">
+                                        <TextBlock Grid.Column="0" Text="📁 Install Path:" Classes="detailLabel" />
+                                        <TextBlock Grid.Column="1" Text="{Binding InstallationPath}" Classes="detailValue" />
+                                    </Grid>
+                                </StackPanel>
+                            </StackPanel>
+                        </Border>
+                    </ScrollViewer>
+                </Grid>
+            </Grid>
+
+            <!-- Enhanced Status Bar -->
+            <Border Grid.Row="2" Classes="statusBar">
+                <Grid>
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="*"/>
+                        <ColumnDefinition Width="Auto"/>
+                        <ColumnDefinition Width="Auto"/>
+                        <ColumnDefinition Width="Auto"/>
+                    </Grid.ColumnDefinitions>
+                    
+                    <TextBlock Grid.Column="0" Text="{Binding StatusText}" Classes="statusText" />
+                    
+                    <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="8" Margin="0,0,16,0">
+                        <Ellipse Classes="networkIndicator" />
+                        <TextBlock Text="{Binding NetworkStatus}" Classes="networkStatus" />
+                    </StackPanel>
+                    
+                    <TextBlock Grid.Column="2" Text="{Binding EstimatedTimeRemaining}" Classes="timeRemaining" 
+                               IsVisible="{Binding EstimatedTimeRemaining, Converter={x:Static StringConverters.IsNotNullOrEmpty}}" />
+                    
+                    <Border Grid.Column="3" Classes="progressRing" IsVisible="{Binding IsDownloading}">
+                        <Ellipse Classes="activityIndicator" />
+                    </Border>
                 </Grid>
             </Border>
 
         </Grid>
     </Border>
-
 </Window>
