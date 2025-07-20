@@ -182,7 +182,7 @@ public class MainWindowViewModel : ViewModelBase
     public int TotalChangeCount => AllVersions.Sum(v => v.Changes.Count);
     
     public string ChangelogTitle => HasMultipleVersions 
-        ? $"What's New ({VersionCount} versions, {TotalChangeCount} changes):"
+        ? $"What's New:"
         : AllVersions.FirstOrDefault()?.Version != null 
             ? $"What's New in {CleanVersionString(AllVersions.First().Version)}:"
             : "What's New:";
