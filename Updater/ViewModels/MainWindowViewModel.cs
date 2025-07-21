@@ -1,5 +1,4 @@
-﻿
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.IO;
@@ -10,6 +9,7 @@ using System.Runtime.InteropServices;
 using System.Threading.Tasks;
 using CommonLib.Interfaces;
 using CommonLib.Models;
+using CommonLib.Services;
 using NLog;
 using ReactiveUI;
 using Updater.Extensions;
@@ -167,6 +167,27 @@ public class MainWindowViewModel : ViewModelBase
         get => _installationPath;
         set => this.RaiseAndSetIfChanged(ref _installationPath, value);
     }
+    
+    private bool _hasSecurityWarning = false;
+    public bool HasSecurityWarning
+    {
+        get => _hasSecurityWarning;
+        set => this.RaiseAndSetIfChanged(ref _hasSecurityWarning, value);
+    }
+
+    private string _securityWarningMessage = string.Empty;
+    public string SecurityWarningMessage
+    {
+        get => _securityWarningMessage;
+        set => this.RaiseAndSetIfChanged(ref _securityWarningMessage, value);
+    }
+
+    private bool _updateBlocked = false;
+    public bool UpdateBlocked
+    {
+        get => _updateBlocked;
+        set => this.RaiseAndSetIfChanged(ref _updateBlocked, value);
+    }
 
     private IDisposable? _imageTimer;
 
@@ -229,14 +250,29 @@ public class MainWindowViewModel : ViewModelBase
         ApplicationName = ExtractApplicationName(_repository);
         
         CurrentVersion = $"Current Version: v{_numberedVersionCurrent}";
-
-        UpdateCommand = ReactiveCommand.CreateFromTask(PerformUpdateAsync);
+        
+        var canUpdate = this.WhenAnyValue(x => x.UpdateBlocked, blocked => !blocked);
+        UpdateCommand = ReactiveCommand.CreateFromTask(PerformUpdateAsync, canUpdate);
         ViewReleaseNotesCommand = ReactiveCommand.Create(ViewReleaseNotes);
 
         InitializeSystemInformation();
-        Begin();
+        
+        StatusText = "Checking for updates...";
+        
+        _ = InitializeAsync();
+    }
 
-        StatusText = "Loading...";
+    private async Task InitializeAsync()
+    {
+        try
+        {
+            await Begin();
+        }
+        catch (Exception ex)
+        {
+            _logger.Error(ex, "Failed to initialize application");
+            StatusText = "Failed to initialize - application will continue in safe mode";
+        }
     }
 
     private void InitializeSystemInformation()
@@ -351,6 +387,8 @@ public class MainWindowViewModel : ViewModelBase
             _logger.Info("=== UPDATE COMMAND EXECUTED ===");
             _logger.Debug("Update process started");
             
+            ClearSecurityWarning();
+            
             _logger.Info("Setting IsDownloading to true");
             IsDownloading = true;
             
@@ -397,12 +435,48 @@ public class MainWindowViewModel : ViewModelBase
                 IsDownloading = false;
             }
         }
+        catch (UpdateService.SecurityException secEx)
+        {
+            _logger.Error(secEx, "SECURITY VIOLATION: Update blocked due to untrusted release author");
+            HandleSecurityViolation(secEx);
+        }
         catch (Exception ex)
         {
             _logger.Error(ex, "Error in PerformUpdateAsync: {Message}", ex.Message);
             StatusText = "Update Failed";
             IsDownloading = false;
         }
+    }
+
+    private void HandleSecurityViolation(UpdateService.SecurityException secEx)
+    {
+        _logger.Error("SECURITY ALERT: {Message}", secEx.Message);
+        
+        HasSecurityWarning = true;
+        UpdateBlocked = true;
+        IsDownloading = false;
+        
+        SecurityWarningMessage = $"Security Warning: Update blocked for your safety.\n\n" +
+                                $"The release '{secEx.ReleaseTag}' from repository '{secEx.Repository}' " +
+                                $"was created by '{secEx.AuthorLogin}', which is not a trusted author.\n\n" +
+                                $"This update has been blocked to protect your system from potentially malicious releases.";
+        
+        StatusText = "Update Blocked - Security Violation Detected";
+        
+        this.RaisePropertyChanged(nameof(HasSecurityWarning));
+        this.RaisePropertyChanged(nameof(UpdateBlocked));
+        this.RaisePropertyChanged(nameof(SecurityWarningMessage));
+    }
+
+    private void ClearSecurityWarning()
+    {
+        HasSecurityWarning = false;
+        UpdateBlocked = false;
+        SecurityWarningMessage = string.Empty;
+        
+        this.RaisePropertyChanged(nameof(HasSecurityWarning));
+        this.RaisePropertyChanged(nameof(UpdateBlocked));
+        this.RaisePropertyChanged(nameof(SecurityWarningMessage));
     }
 
     private void OnDownloadProgressChanged(DownloadProgress progress)
@@ -442,32 +516,58 @@ public class MainWindowViewModel : ViewModelBase
     {
         _logger.Debug("Begin() called for MainWindowViewModel");
     
-        var (info, updater) = await _getBackgroundInformation.GetResources();
-        InfoJson = info;
-        UpdaterInfoJson = updater;
+        try
+        {
+            var (info, updater) = await _getBackgroundInformation.GetResources();
+            InfoJson = info;
+            UpdaterInfoJson = updater;
 
-        if (UpdaterInfoJson?.Backgrounds?.Images != null)
-        {
-            BackgroundImages = UpdaterInfoJson.Backgrounds.Images;
+            if (UpdaterInfoJson?.Backgrounds?.Images != null)
+            {
+                BackgroundImages = UpdaterInfoJson.Backgrounds.Images;
+            }
+            StartImageRotation();
+            
+            await SafelyCheckForUpdates();
         }
-        StartImageRotation();
-    
-        var latestVersion = await _updateService.GetMostRecentVersionAsync(_repository);
-        UpdatedVersion = $"Updated Version: {latestVersion}";
-        _numberedVersionUpdated = latestVersion;
-    
-        if (!CurrentVersion.Contains(latestVersion))
+        catch (Exception ex)
         {
-            _logger.Info("Update available - Current: {Current}, Latest: {Latest}", _numberedVersionCurrent, latestVersion);
-        
-            await LoadChangelogAsync();
-        
-            StatusText = "Update Available - Click 'Update Now' to begin";
+            _logger.Error(ex, "Error in Begin(): {Message}", ex.Message);
+            StatusText = "Failed to check for updates";
         }
-        else
+    }
+
+    private async Task SafelyCheckForUpdates()
+    {
+        try
         {
-            _logger.Info("No update needed - versions match");
-            StatusText = "Up to date!";
+            var latestVersion = await _updateService.GetMostRecentVersionAsync(_repository);
+            UpdatedVersion = $"Updated Version: {latestVersion}";
+            _numberedVersionUpdated = latestVersion;
+
+            if (!CurrentVersion.Contains(latestVersion))
+            {
+                _logger.Info("Update available - Current: {Current}, Latest: {Latest}", _numberedVersionCurrent, latestVersion);
+
+                await LoadChangelogAsync();
+
+                StatusText = "Update Available - Click 'Update Now' to begin";
+            }
+            else
+            {
+                _logger.Info("No update needed - versions match");
+                StatusText = "Up to date!";
+            }
+        }
+        catch (UpdateService.SecurityException secEx)
+        {
+            _logger.Error(secEx, "SECURITY VIOLATION during update check");
+            HandleSecurityViolation(secEx);
+        }
+        catch (Exception ex)
+        {
+            _logger.Error(ex, "Failed to check for updates: {Message}", ex.Message);
+            StatusText = "Unable to check for updates - network or server error";
         }
     }
 
@@ -476,34 +576,46 @@ public class MainWindowViewModel : ViewModelBase
         try
         {
             _logger.Debug("Loading changelog information");
-        
+
             var allVersionsSinceCurrentValue = await _updateService.GetAllVersionInfoSinceCurrentAsync(_numberedVersionCurrent, _repository);
-        
+
             if (allVersionsSinceCurrentValue?.Any() == true)
             {
                 AllVersions = allVersionsSinceCurrentValue
                     .OrderByDescending(v => v.PublishedAt)
                     .ToList();
-            
+
                 _logger.Debug("Retrieved and sorted {VersionCount} versions with {TotalChanges} total changes", 
                     AllVersions.Count, 
                     AllVersions.Sum(v => v.Changes.Count));
             }
             else
             {
-                var versionInfo = await _updateService.GetMostRecentVersionInfoAsync(_repository);
-                if (versionInfo != null)
+                try
                 {
-                    AllVersions = new List<VersionInfo> { versionInfo };
-                    _logger.Debug("Fallback: Retrieved single version info with {ChangeCount} changes", versionInfo.Changes.Count);
+                    var versionInfo = await _updateService.GetMostRecentVersionInfoAsync(_repository);
+                    if (versionInfo != null)
+                    {
+                        AllVersions = new List<VersionInfo> { versionInfo };
+                        _logger.Debug("Fallback: Retrieved single version info with {ChangeCount} changes", versionInfo.Changes.Count);
+                    }
+                }
+                catch (UpdateService.SecurityException secEx)
+                {
+                    _logger.Warn(secEx, "Security exception while loading fallback version info - continuing without changelog");
                 }
             }
-        
+
             this.RaisePropertyChanged(nameof(HasVersions));
             this.RaisePropertyChanged(nameof(HasMultipleVersions));
             this.RaisePropertyChanged(nameof(VersionCount));
             this.RaisePropertyChanged(nameof(TotalChangeCount));
             this.RaisePropertyChanged(nameof(ChangelogTitle));
+        }
+        catch (UpdateService.SecurityException secEx)
+        {
+            _logger.Error(secEx, "SECURITY VIOLATION while loading changelog");
+            HandleSecurityViolation(secEx);
         }
         catch (Exception ex)
         {

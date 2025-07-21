@@ -93,6 +93,62 @@
         <Setter Property="Padding" Value="16" />
     </Style>
 
+    <!-- Security Warning Card Styles -->
+    <Style Selector="Border.securityWarningCard">
+        <Setter Property="Background">
+            <Setter.Value>
+                <LinearGradientBrush StartPoint="0%,0%" EndPoint="100%,100%">
+                    <GradientStop Color="#FF4444" Offset="0" />
+                    <GradientStop Color="#CC0000" Offset="1" />
+                </LinearGradientBrush>
+            </Setter.Value>
+        </Setter>
+        <Setter Property="BorderThickness" Value="2" />
+        <Setter Property="BorderBrush" Value="#CC0000" />
+        <Setter Property="CornerRadius" Value="8" />
+        <Setter Property="Padding" Value="16" />
+        <Setter Property="BoxShadow" Value="0 4 12 0 #40FF4444" />
+        <Setter Property="Transitions">
+            <Transitions>
+                <DoubleTransition Property="Opacity" Duration="0:0:0.3" />
+                <TransformOperationsTransition Property="RenderTransform" Duration="0:0:0.3" />
+            </Transitions>
+        </Setter>
+    </Style>
+
+    <!-- Security Status Card -->
+    <Style Selector="Border.securityStatusCard">
+        <Setter Property="Background" Value="{StaticResource CardBackgroundBrush}" />
+        <Setter Property="BorderThickness" Value="2" />
+        <Setter Property="BorderBrush" Value="#FF4444" />
+        <Setter Property="CornerRadius" Value="8" />
+        <Setter Property="Padding" Value="16" />
+        <Setter Property="BoxShadow" Value="0 2 8 0 #20FF4444" />
+    </Style>
+
+    <!-- Security Badge Styles -->
+    <Style Selector="Border.securityBlockedBadge">
+        <Setter Property="Background" Value="#FF4444" />
+        <Setter Property="BorderThickness" Value="0" />
+        <Setter Property="CornerRadius" Value="4" />
+        <Setter Property="Padding" Value="8,4" />
+    </Style>
+
+    <Style Selector="Border.securityOkBadge">
+        <Setter Property="Background" Value="#4CAF50" />
+        <Setter Property="BorderThickness" Value="0" />
+        <Setter Property="CornerRadius" Value="4" />
+        <Setter Property="Padding" Value="8,4" />
+    </Style>
+
+    <!-- Security Status Text -->
+    <Style Selector="TextBlock.securityStatusText">
+        <Setter Property="FontWeight" Value="Bold" />
+        <Setter Property="FontSize" Value="12" />
+        <Setter Property="Foreground" Value="White" />
+        <Setter Property="TextAlignment" Value="Center" />
+    </Style>
+
     <!-- Card Titles -->
     <Style Selector="TextBlock.cardTitle">
         <Setter Property="FontSize" Value="18" />
@@ -164,6 +220,13 @@
         <Setter Property="CornerRadius" Value="6" />
         <Setter Property="FontSize" Value="14" />
         <Setter Property="FontWeight" Value="Medium" />
+        <Setter Property="Transitions">
+            <Transitions>
+                <BrushTransition Property="Background" Duration="0:0:0.15" />
+                <BrushTransition Property="BorderBrush" Duration="0:0:0.15" />
+                <DoubleTransition Property="Opacity" Duration="0:0:0.15" />
+            </Transitions>
+        </Setter>
     </Style>
 
     <Style Selector="Button.actionButton.primary">
@@ -175,6 +238,14 @@
     <Style Selector="Button.actionButton.primary:pointerover">
         <Setter Property="Background" Value="{StaticResource AccentBrush}" />
         <Setter Property="BorderBrush" Value="{StaticResource AccentBrush}" />
+    </Style>
+
+    <!-- Disabled state for blocked updates -->
+    <Style Selector="Button.actionButton.primary:disabled">
+        <Setter Property="Background" Value="#CCCCCC" />
+        <Setter Property="BorderBrush" Value="#CCCCCC" />
+        <Setter Property="Foreground" Value="#666666" />
+        <Setter Property="Opacity" Value="0.6" />
     </Style>
 
     <Style Selector="Button.actionButton.secondary">
@@ -290,16 +361,57 @@
         <Setter Property="VerticalAlignment" Value="Center" />
     </Style>
 
+    <!-- Security Status Text in Status Bar -->
+    <Style Selector="TextBlock.statusTextBlocked">
+        <Setter Property="FontSize" Value="14" />
+        <Setter Property="Foreground" Value="#FF4444" />
+        <Setter Property="FontWeight" Value="SemiBold" />
+        <Setter Property="VerticalAlignment" Value="Center" />
+    </Style>
+
     <Style Selector="Ellipse.networkIndicator">
         <Setter Property="Width" Value="8" />
         <Setter Property="Height" Value="8" />
         <Setter Property="Fill" Value="{StaticResource EnableBrush}" />
     </Style>
 
+    <!-- Security Warning Indicator -->
+    <Style Selector="Ellipse.securityWarningIndicator">
+        <Setter Property="Width" Value="8" />
+        <Setter Property="Height" Value="8" />
+        <Setter Property="Fill" Value="#FF4444" />
+        <Setter Property="Opacity" Value="1" />
+    </Style>
+
+    <!-- Pulsing animation for security warning -->
+    <Style Selector="Ellipse.securityWarningIndicator">
+        <Style.Animations>
+            <Animation Duration="0:0:1.5" IterationCount="Infinite">
+                <KeyFrame Cue="0%">
+                    <Setter Property="Opacity" Value="1" />
+                </KeyFrame>
+                <KeyFrame Cue="50%">
+                    <Setter Property="Opacity" Value="0.3" />
+                </KeyFrame>
+                <KeyFrame Cue="100%">
+                    <Setter Property="Opacity" Value="1" />
+                </KeyFrame>
+            </Animation>
+        </Style.Animations>
+    </Style>
+
     <Style Selector="TextBlock.networkStatus, TextBlock.timeRemaining">
         <Setter Property="FontSize" Value="12" />
         <Setter Property="Foreground" Value="{StaticResource TextBrush}" />
         <Setter Property="Opacity" Value="0.8" />
+        <Setter Property="VerticalAlignment" Value="Center" />
+    </Style>
+
+    <!-- Security Warning Text in Status Bar -->
+    <Style Selector="TextBlock.securityWarningStatus">
+        <Setter Property="FontSize" Value="12" />
+        <Setter Property="Foreground" Value="#FF4444" />
+        <Setter Property="FontWeight" Value="SemiBold" />
         <Setter Property="VerticalAlignment" Value="Center" />
     </Style>
 
@@ -339,6 +451,12 @@
                 </KeyFrame>
             </Animation>
         </Style.Animations>
+    </Style>
+
+    <!-- Security Status Card Title -->
+    <Style Selector="Border.securityStatusCard TextBlock.cardTitle">
+        <Setter Property="Foreground" Value="#FF4444" />
+        <Setter Property="FontWeight" Value="SemiBold" />
     </Style>
 
 </Styles>

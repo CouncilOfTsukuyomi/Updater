@@ -1,7 +1,8 @@
 <Application xmlns="https://github.com/avaloniaui"
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
              x:Class="Updater.App"
-             xmlns:updater="clr-namespace:Updater">
+             xmlns:updater="clr-namespace:Updater"
+             xmlns:converts="clr-namespace:Updater.Converts">
     <Application.DataTemplates>
         <updater:ViewLocator/>
     </Application.DataTemplates>
@@ -13,6 +14,13 @@
                  <ResourceInclude Source="/Styles/AcrylicMaterials.axaml"/>
              </ResourceDictionary.MergedDictionaries>
          </ResourceDictionary>
+         
+         <converts:UpdateButtonTextConverter x:Key="UpdateButtonTextConverter" />
+         <converts:SecurityStatusCardClassConverter x:Key="SecurityStatusCardClassConverter" />
+         <converts:SecurityBadgeClassConverter x:Key="SecurityBadgeClassConverter" />
+         <converts:SecurityStatusTextConverter x:Key="SecurityStatusTextConverter" />
+         <converts:SecurityWarningMarginConverter x:Key="SecurityWarningMarginConverter" />
+
      </Application.Resources>
     
     <Application.Styles>

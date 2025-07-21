@@ -106,8 +106,39 @@
                         </TransitioningContentControl>
                     </Border>
 
+                    <!-- Security Warning Card -->
+                    <Border Grid.Row="2" Classes="securityWarningCard" 
+                            IsVisible="{Binding HasSecurityWarning}"
+                            Background="#FF4444"
+                            BorderBrush="#CC0000"
+                            BorderThickness="2"
+                            CornerRadius="8"
+                            Padding="16"
+                            Margin="0,0,0,16">
+                        <StackPanel Spacing="12">
+                            <StackPanel Orientation="Horizontal" Spacing="8">
+                                <TextBlock Text="🚫" FontSize="24" VerticalAlignment="Center" />
+                                <TextBlock Text="SECURITY WARNING" 
+                                          FontWeight="Bold" 
+                                          FontSize="18" 
+                                          Foreground="White"
+                                          VerticalAlignment="Center" />
+                            </StackPanel>
+                            
+                            <ScrollViewer MaxHeight="200" VerticalScrollBarVisibility="Auto">
+                                <TextBlock Text="{Binding SecurityWarningMessage}" 
+                                          TextWrapping="Wrap"
+                                          Foreground="White"
+                                          FontSize="14"
+                                          LineHeight="20" />
+                            </ScrollViewer>
+                        </StackPanel>
+                    </Border>
+
                     <!-- Changelog -->
-                    <Border Grid.Row="2" Classes="changelogCard" IsVisible="{Binding HasVersions}">
+                    <Border Grid.Row="2" Classes="changelogCard" 
+                            IsVisible="{Binding HasVersions}"
+                            Margin="{Binding HasSecurityWarning, Converter={StaticResource SecurityWarningMarginConverter}}">
                         <Grid RowDefinitions="Auto,*,Auto">
                             <TextBlock Grid.Row="0" Text="{Binding ChangelogTitle}" Classes="cardTitle" />
                             
@@ -174,9 +205,20 @@
                             
                             <!-- Quick Actions (when not downloading) -->
                             <StackPanel Spacing="8" IsVisible="{Binding !IsDownloading}">
-                                <Button Classes="actionButton primary" Command="{Binding UpdateCommand}">
+                                <!-- Update Button - Enhanced with Security State -->
+                                <Button Classes="actionButton primary" 
+                                        Command="{Binding UpdateCommand}"
+                                        IsEnabled="{Binding !UpdateBlocked}">
                                     <StackPanel Orientation="Horizontal" Spacing="8">
-                                        <TextBlock Text="Update Now" />
+                                        <!-- Security Icon when blocked -->
+                                        <TextBlock Text="🚫" 
+                                                  IsVisible="{Binding UpdateBlocked}" 
+                                                  FontSize="16" />
+                                        <!-- Normal Update Icon when allowed -->
+                                        <TextBlock Text="⬇️" 
+                                                  IsVisible="{Binding !UpdateBlocked}" 
+                                                  FontSize="16" />
+                                        <TextBlock Text="{Binding UpdateBlocked, Converter={StaticResource UpdateButtonTextConverter}}" />
                                     </StackPanel>
                                 </Button>
                                 
@@ -205,8 +247,27 @@
                         </StackPanel>
                     </Border>
 
+                    <!-- Security Status Card -->
+                    <Border Grid.Row="1" 
+                            Margin="0,0,0,16"
+                            IsVisible="{Binding UpdateBlocked}"
+                            Classes="securityStatusCard">
+                        
+                        <StackPanel Spacing="12">
+                            <StackPanel Orientation="Horizontal" Spacing="8">
+                                <TextBlock Text="🛡️" FontSize="20" VerticalAlignment="Center" />
+                                <TextBlock Text="Security Status" Classes="cardTitle" />
+                            </StackPanel>
+                            
+                            <Border Classes="securityBlockedBadge">
+                                <TextBlock Text="{Binding UpdateBlocked, Converter={StaticResource SecurityStatusTextConverter}}" 
+                                          Classes="securityStatusText" />
+                            </Border>
+                        </StackPanel>
+                    </Border>
+
                     <!-- Version Information -->
-                    <Border Grid.Row="1" Classes="infoCard" Margin="0,0,0,16">
+                    <Border Grid.Row="2" Classes="infoCard" Margin="0,0,0,16">
                         <StackPanel Spacing="16">
                             <TextBlock Text="Version Information" Classes="cardTitle" />
                             
@@ -255,7 +316,7 @@
                 </Grid>
             </Grid>
 
-            <!-- Enhanced Status Bar -->
+            <!-- Enhanced Status Bar with Security Indicator -->
             <Border Grid.Row="2" Classes="statusBar">
                 <Grid>
                     <Grid.ColumnDefinitions>
@@ -263,19 +324,27 @@
                         <ColumnDefinition Width="Auto"/>
                         <ColumnDefinition Width="Auto"/>
                         <ColumnDefinition Width="Auto"/>
+                        <ColumnDefinition Width="Auto"/>
                     </Grid.ColumnDefinitions>
                     
                     <TextBlock Grid.Column="0" Text="{Binding StatusText}" Classes="statusText" />
                     
-                    <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="8" Margin="0,0,16,0">
+                    <!-- Security Indicator -->
+                    <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="8" Margin="0,0,16,0"
+                                IsVisible="{Binding HasSecurityWarning}">
+                        <Ellipse Classes="securityWarningIndicator" />
+                        <TextBlock Text="Security Warning" Classes="securityWarningStatus" />
+                    </StackPanel>
+                    
+                    <StackPanel Grid.Column="2" Orientation="Horizontal" Spacing="8" Margin="0,0,16,0">
                         <Ellipse Classes="networkIndicator" />
                         <TextBlock Text="{Binding NetworkStatus}" Classes="networkStatus" />
                     </StackPanel>
                     
-                    <TextBlock Grid.Column="2" Text="{Binding EstimatedTimeRemaining}" Classes="timeRemaining" 
+                    <TextBlock Grid.Column="3" Text="{Binding EstimatedTimeRemaining}" Classes="timeRemaining" 
                                IsVisible="{Binding EstimatedTimeRemaining, Converter={x:Static StringConverters.IsNotNullOrEmpty}}" />
                     
-                    <Border Grid.Column="3" Classes="progressRing" IsVisible="{Binding IsDownloading}">
+                    <Border Grid.Column="4" Classes="progressRing" IsVisible="{Binding IsDownloading}">
                         <Ellipse Classes="activityIndicator" />
                     </Border>
                 </Grid>
