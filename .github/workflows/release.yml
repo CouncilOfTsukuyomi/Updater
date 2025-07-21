@@ -1,0 +1,369 @@
+﻿name: Manual Build and Release
+
+on:
+    workflow_dispatch:
+        inputs:
+            releaseType:
+                description: "Which version increment?"
+                required: true
+                default: "patch"
+                type: choice
+                options:
+                    - major
+                    - minor
+                    - patch
+            isBeta:
+                description: "Build as a beta release?"
+                required: true
+                default: "false"
+                type: choice
+                options:
+                    - "false"
+                    - "true"
+            sourceBranch:
+                description: "Source branch (leave empty for auto-selection)"
+                required: false
+                default: ""
+                type: string
+
+permissions:
+    contents: write
+    issues: write
+    pull-requests: write
+    security-events: write
+
+jobs:
+    release-approval:
+        runs-on: ubuntu-latest
+        environment:
+            name: ${{ github.event.inputs.isBeta == 'true' && 'Development' || 'Production' }}
+        outputs:
+            approved: ${{ steps.approval.outputs.approved }}
+            source_branch: ${{ steps.determine-branch.outputs.source_branch }}
+        steps:
+            - name: Determine Source Branch
+              id: determine-branch
+              shell: bash
+              run: |
+                  if [ -n "${{ github.event.inputs.sourceBranch }}" ]; then
+                    echo "source_branch=${{ github.event.inputs.sourceBranch }}" >> $GITHUB_OUTPUT
+                    echo "Using manually specified branch: ${{ github.event.inputs.sourceBranch }}"
+                  elif [ "${{ github.event.inputs.isBeta }}" = "true" ]; then
+                    echo "source_branch=develop" >> $GITHUB_OUTPUT
+                    echo "Beta release detected - using develop branch"
+                  else
+                    echo "source_branch=main" >> $GITHUB_OUTPUT
+                    echo "Production release detected - using main branch"
+                  fi
+
+            - name: Release Approval Request
+              id: approval
+              run: |
+                  echo "🔒 Release pipeline is awaiting approval..."
+                  echo "📋 Release Details:"
+                  echo "   • Release Type: ${{ github.event.inputs.isBeta == 'true' && 'Beta' || 'Production' }}"
+                  echo "   • Version Increment: ${{ github.event.inputs.releaseType }}"
+                  echo "   • Source Branch: ${{ steps.determine-branch.outputs.source_branch }}"
+                  echo "   • Triggered by: ${{ github.actor }}"
+                  echo ""
+                  echo "⚠️  This will:"
+                  echo "   • Update version numbers"
+                  echo "   • Create version update PR"
+                  echo "   • Build Windows and Linux releases"
+                  echo "   • Create GitHub release"
+                  echo ""
+                  echo "✅ Approval granted - proceeding with release pipeline..."
+                  echo "approved=true" >> $GITHUB_OUTPUT
+
+    version-update:
+        needs: release-approval
+        runs-on: ubuntu-latest
+        outputs:
+            version: ${{ steps.version-output.outputs.version }}
+            major: ${{ steps.version-output.outputs.major }}
+            minor: ${{ steps.version-output.outputs.minor }}
+            patch: ${{ steps.version-output.outputs.patch }}
+            source_branch: ${{ needs.release-approval.outputs.source_branch }}
+        steps:
+            - uses: actions/create-github-app-token@v1
+              id: app-token
+              with:
+                  app-id: ${{ vars.APP_ID }}
+                  private-key: ${{ secrets.APP_PRIVATE_KEY }}
+
+            - name: Checkout Code
+              uses: actions/checkout@v4
+              with:
+                  fetch-depth: 0
+                  submodules: recursive
+                  token: ${{ steps.app-token.outputs.token }}
+                  ref: ${{ needs.release-approval.outputs.source_branch }}
+
+            - name: Set Git User
+              run: |
+                  git config user.name "github-actions[bot]"
+                  git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+
+            - name: Setup Dependencies
+              run: |
+                  # Install Python if not available
+                  if ! command -v python3 &> /dev/null; then
+                      sudo apt-get update
+                      sudo apt-get install -y python3 python3-pip
+                  fi
+                  
+                  # Make script executable
+                  if [ -f ".github/scripts/increment_version.py" ]; then
+                      echo "Python script found"
+                  else
+                      echo "Warning: Python script not found"
+                  fi
+
+            - name: Determine Version with GitVersion
+              id: gitversion
+              run: |
+                  export RELEASE_TYPE="${{ github.event.inputs.releaseType }}"
+                  export IS_BETA="${{ github.event.inputs.isBeta }}"
+                  python3 .github/scripts/increment_version.py
+              env:
+                  RELEASE_TYPE: ${{ github.event.inputs.releaseType }}
+                  IS_BETA: ${{ github.event.inputs.isBeta }}
+
+            - name: Update Directory.Build.props Versions
+              run: |
+                  major="${{ steps.gitversion.outputs.major }}"
+                  minor="${{ steps.gitversion.outputs.minor }}"
+                  patch="${{ steps.gitversion.outputs.patch }}"
+                  
+                  sed -i "s|<MajorVersion>.*</MajorVersion>|<MajorVersion>$major</MajorVersion>|g" Directory.Build.props
+                  sed -i "s|<MinorVersion>.*</MinorVersion>|<MinorVersion>$minor</MinorVersion>|g" Directory.Build.props
+                  sed -i "s|<PatchVersion>.*</PatchVersion>|<PatchVersion>$patch</PatchVersion>|g" Directory.Build.props
+
+            - name: Handle Beta Builds
+              run: |
+                  sed -i "s|<IsBeta>.*</IsBeta>|<IsBeta>${{ github.event.inputs.isBeta }}</IsBeta>|g" Directory.Build.props
+
+            - name: Create Pull Request for Version Update
+              id: create-pr
+              uses: peter-evans/create-pull-request@v5
+              with:
+                  token: ${{ steps.app-token.outputs.token }}
+                  commit-message: "chore: update version to ${{ steps.gitversion.outputs.fullsemver }} (isBeta=${{ github.event.inputs.isBeta }})"
+                  title: "🤖 Version Update: ${{ steps.gitversion.outputs.fullsemver }}"
+                  body: |
+                      Automated version update for release ${{ steps.gitversion.outputs.fullsemver }}
+                      
+                      - **Version**: ${{ steps.gitversion.outputs.fullsemver }}
+                      - **Beta**: ${{ github.event.inputs.isBeta }}
+                      - **Release Type**: ${{ github.event.inputs.releaseType }}
+                      - **Source Branch**: ${{ needs.release-approval.outputs.source_branch }}
+                      - **Approved by**: ${{ github.actor }}
+                      
+                      This PR was automatically created by the release workflow after manual approval.
+                  branch: version-update-${{ steps.gitversion.outputs.fullsemver }}
+                  base: ${{ needs.release-approval.outputs.source_branch }}
+                  delete-branch: true
+
+            - name: Auto-merge Version Update PR
+              if: steps.create-pr.outputs.pull-request-number
+              uses: peter-evans/enable-pull-request-automerge@v3
+              with:
+                  token: ${{ steps.app-token.outputs.token }}
+                  pull-request-number: ${{ steps.create-pr.outputs.pull-request-number }}
+                  merge-method: squash
+
+            - name: Wait for PR to be merged
+              if: steps.create-pr.outputs.pull-request-number
+              run: |
+                  prNumber="${{ steps.create-pr.outputs.pull-request-number }}"
+                  maxAttempts=30
+                  attempt=0
+                  
+                  echo "⏳ Waiting for PR #$prNumber to be merged..."
+                  
+                  while [ $attempt -lt $maxAttempts ]; do
+                      sleep 10
+                      attempt=$((attempt + 1))
+                  
+                      prInfo=$(gh pr view $prNumber --json state,mergeable,mergeStateStatus --repo ${{ github.repository }})
+                      prState=$(echo "$prInfo" | jq -r '.state')
+                  
+                      echo "Attempt $attempt/$maxAttempts - PR State: $prState"
+                  
+                      if [ "$prState" = "MERGED" ]; then
+                          echo "✅ PR merged successfully!"
+                          break
+                      elif [ "$prState" = "CLOSED" ]; then
+                          echo "❌ PR was closed without merging"
+                          exit 1
+                      fi
+                  
+                      if [ $attempt -ge $maxAttempts ]; then
+                          echo "❌ PR was not merged within expected time (5 minutes)"
+                          exit 1
+                      fi
+                  done
+              env:
+                  GH_TOKEN: ${{ steps.app-token.outputs.token }}
+
+            - name: Set Version Outputs
+              id: version-output
+              run: |
+                  echo "version=${{ steps.gitversion.outputs.fullsemver }}" >> $GITHUB_OUTPUT
+                  echo "major=${{ steps.gitversion.outputs.major }}" >> $GITHUB_OUTPUT
+                  echo "minor=${{ steps.gitversion.outputs.minor }}" >> $GITHUB_OUTPUT
+                  echo "patch=${{ steps.gitversion.outputs.patch }}" >> $GITHUB_OUTPUT
+    
+    build-windows:
+        needs: [release-approval, version-update]
+        runs-on: windows-latest
+        outputs:
+            artifact_name: ${{ steps.build.outputs.artifact_name }}
+            zip_filename: ${{ steps.build.outputs.zip_filename }}
+        steps:
+            - name: Build Windows
+              id: build
+              uses: ./.github/workflows/templates/BuildWindows/action.yml
+              with:
+                  source_branch: ${{ needs.version-update.outputs.source_branch }}
+                  version: ${{ needs.version-update.outputs.version }}
+                  configuration: 'Release'
+                  run_tests: 'true'
+                  sentry_dsn: ${{ secrets.SENTRY_DSN }}
+
+    build-linux:
+        needs: [release-approval, version-update]
+        runs-on: ubuntu-latest
+        outputs:
+            artifact_name: ${{ steps.build.outputs.artifact_name }}
+            zip_filename: ${{ steps.build.outputs.zip_filename }}
+        steps:
+            - name: Build Linux
+              id: build
+              uses: ./.github/workflows/templates/BuildLinux/action.yml
+              with:
+                  source_branch: ${{ needs.version-update.outputs.source_branch }}
+                  version: ${{ needs.version-update.outputs.version }}
+                  configuration: 'Release'
+                  run_tests: 'true'
+                  sentry_dsn: ${{ secrets.SENTRY_DSN }}
+    
+    create-release:
+        needs: [release-approval, version-update, build-windows, build-linux]
+        runs-on: ubuntu-latest
+        steps:
+            - name: Checkout Code for Release Notes
+              uses: actions/checkout@v4
+              with:
+                  fetch-depth: 0
+                  submodules: recursive
+                  ref: ${{ needs.version-update.outputs.source_branch }}
+
+            - name: Get Latest Release from GitHub
+              id: get-release
+              uses: actions/github-script@v7
+              with:
+                  script: |
+                      const { data: releases } = await github.rest.repos.listReleases({
+                        owner: context.repo.owner,
+                        repo: context.repo.repo
+                      });
+                      if (!releases || releases.length === 0) {
+                        core.setOutput("latest_tag", "");
+                      } else {
+                        core.setOutput("latest_tag", releases[0].tag_name);
+                      }
+
+            - name: Generate Release Notes
+              id: gen-notes
+              uses: actions/github-script@v7
+              with:
+                  script: |
+                      const latestTag = "${{ steps.get-release.outputs.latest_tag }}";
+                      const sourceBranch = "${{ needs.version-update.outputs.source_branch }}";
+                      
+                      if (!latestTag) {
+                        core.exportVariable('COMMITS', 'No previous tag — first release.');
+                        return;
+                      }
+                      
+                      try {
+                        // Get commits since last release on the current branch
+                        const comparison = await github.rest.repos.compareCommits({
+                          owner: context.repo.owner,
+                          repo: context.repo.repo,
+                          base: latestTag,
+                          head: sourceBranch
+                        });
+                      
+                        const commits = comparison.data.commits
+                          .filter(commit => {
+                            const message = commit.commit.message;
+                            return !message.includes('chore: update version to') &&
+                                   !message.includes('🤖 Version Update:') &&
+                                   !message.includes('version-update');
+                          })
+                          .map(commit => {
+                            const message = commit.commit.message.split('\n')[0];
+                            const hash = commit.sha.substring(0, 7);
+                            const author = commit.author ? `@${commit.author.login}` : commit.commit.author.name;
+                            return `- ${message} (${hash}) by ${author}`;
+                          });
+                      
+                        const commitsText = commits.length > 0 ? commits.join('\n') : '- Minor improvements and bug fixes';
+                        core.exportVariable('COMMITS', commitsText);
+                        console.log('Generated release notes:');
+                        console.log(commitsText);
+                      } catch (error) {
+                        console.log('Error generating commit history:', error.message);
+                        core.exportVariable('COMMITS', '- Minor improvements and bug fixes');
+                      }
+
+            - name: Download All Artifacts
+              uses: actions/download-artifact@v4
+              with:
+                  path: ./artifacts
+
+            - name: Move artifacts to publish folder
+              run: |
+                  mkdir -p "./publish"
+                  find "./artifacts" -name "*.zip" -exec cp {} "./publish/" \;
+                  
+                  # List all files for verification
+                  echo "Files in publish directory:"
+                  ls -la "./publish"
+
+            - name: Create GitHub Release
+              uses: softprops/action-gh-release@v1
+              with:
+                  tag_name: v${{ needs.version-update.outputs.version }}
+                  name: Release v${{ needs.version-update.outputs.version }}${{ github.event.inputs.isBeta == 'true' && ' (Beta)' || '' }}
+                  body: |
+                      ## Changes (since last release):
+                      ${{ env.COMMITS }}
+                      
+                      ## Available Downloads:
+                      - `${{ needs.build-windows.outputs.zip_filename }}` - Windows 64-bit
+                      - `${{ needs.build-linux.outputs.zip_filename }}` - Linux 64-bit
+                      
+                      **Note:** These releases contain self-contained builds that work on their respective platforms.
+                      
+                      **Source Branch:** ${{ needs.version-update.outputs.source_branch }}
+                      **Release Type:** ${{ github.event.inputs.isBeta == 'true' && 'Beta' || 'Production' }}
+                      **Approved by:** ${{ github.actor }}
+                  files: |
+                      ./publish/${{ needs.build-windows.outputs.zip_filename }}
+                      ./publish/${{ needs.build-linux.outputs.zip_filename }}
+                  draft: false
+                  prerelease: ${{ github.event.inputs.isBeta == 'true' }}
+              env:
+                  GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+            - name: Notify on Success
+              if: success()
+              run: |
+                  releaseType=${{ github.event.inputs.isBeta == 'true' && 'Beta' || 'Production' }}
+                  sourceBranch="${{ needs.version-update.outputs.source_branch }}"
+                  echo "✅ $releaseType Release v${{ needs.version-update.outputs.version }} created successfully from $sourceBranch branch!"
+                  echo "📦 Download: https://github.com/${{ github.repository }}/releases/tag/v${{ needs.version-update.outputs.version }}"
+                  echo "👤 Approved by: ${{ github.actor }}"
