@@ -15,9 +15,6 @@ inputs:
         description: 'Whether to run tests'
         required: false
         default: 'true'
-    sentry_dsn:
-        description: 'Sentry DSN for error tracking'
-        required: false
 outputs:
     artifact_name:
         description: 'Name of the uploaded artifact'
@@ -49,49 +46,59 @@ runs:
               dotnet-version: 9.x
 
         - name: Restore Dependencies
-          shell: bash
+          shell: pwsh
           run: dotnet restore
 
         - name: Build Solution
-          shell: bash
+          shell: pwsh
           run: dotnet build --configuration ${{ inputs.configuration }} --verbosity minimal
 
         - name: Run Tests
           if: ${{ inputs.run_tests == 'true' }}
-          shell: bash
+          shell: pwsh
           run: dotnet test --configuration ${{ inputs.configuration }} --no-build --verbosity normal
           continue-on-error: true
 
         - name: Publish Solution Components
-          shell: bash
-          env:
-              SENTRY_DSN: ${{ inputs.sentry_dsn }}
+          shell: pwsh
           run: |
               # Create main publish directory
-              mkdir -p "./publish/Updater-win-x64"
+              New-Item -ItemType Directory -Path "./publish/Updater-win-x64" -Force
               
-              projects=("Updater")
+              $projects = @("Updater")
               
-              for project in "${projects[@]}"; do
-                temp_dir="./publish/temp-$(echo $project | tr '[:upper:]' '[:lower:]')-win-x64"
+              foreach ($project in $projects) {
+                $tempDir = "./publish/temp-$($project.ToLower())-win-x64"
               
-                echo "Publishing $project..."
-                dotnet publish "$project" \
-                  -c ${{ inputs.configuration }} \
-                  -p:PublishSingleFile=true \
-                  -p:PublishReadyToRun=true \
-                  --self-contained=true \
-                  -p:DebugType=None -p:DebugSymbols=false \
-                  -r win-x64 \
-                  -o "$temp_dir" \
+                Write-Host "Publishing $project..."
+                dotnet publish $project `
+                  -c ${{ inputs.configuration }} `
+                  -p:PublishSingleFile=true `
+                  -p:PublishReadyToRun=true `
+                  --self-contained=true `
+                  -p:DebugType=None -p:DebugSymbols=false `
+                  -r win-x64 `
+                  -o $tempDir `
                   -f net9.0
               
+                # Create appsettings.Production.json with Sentry DSN (if available)
+                if ("${{ secrets.SENTRY_DSN }}" -ne "") {
+                  $productionConfig = @{
+                      "SENTRY_DSN" = "${{ secrets.SENTRY_DSN }}"
+                  } | ConvertTo-Json -Depth 3
+              
+                  $productionConfig | Out-File -FilePath "$tempDir/appsettings.Production.json" -Encoding UTF8
+                  Write-Host "Created appsettings.Production.json for $project"
+                } else {
+                  Write-Host "No SENTRY_DSN provided, skipping Sentry configuration for $project"
+                }
+              
                 # Move files to main directory
-                cp -r "$temp_dir/"* "./publish/Updater-win-x64/"
+                Copy-Item -Path "$tempDir/*" -Destination "./publish/Updater-win-x64/" -Recurse -Force
               
                 # Clean up temp directory
-                rm -rf "$temp_dir"
-              done
+                Remove-Item -Path $tempDir -Recurse -Force
+              }
 
         - name: Validate Executables
           shell: pwsh
