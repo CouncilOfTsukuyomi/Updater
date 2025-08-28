@@ -281,8 +281,17 @@ public class MainWindowViewModel : ViewModelBase
         {
             if (RuntimeInformation.IsOSPlatform(OSPlatform.Windows))
             {
-                OperatingSystem = $"Windows {Environment.OSVersion.Version}";
+                var version = Environment.OSVersion.Version;
+                var buildNumber = version.Build;
+
+                OperatingSystem = version.Major switch
+                {
+                    10 when buildNumber >= 22000 => $"Windows 11 (Build {buildNumber})",
+                    10 => $"Windows 10 (Build {buildNumber})",
+                    _ => $"Windows {version}"
+                };
             }
+
             else if (RuntimeInformation.IsOSPlatform(OSPlatform.Linux))
             {
                 OperatingSystem = "Linux";
