@@ -267,6 +267,7 @@ jobs:
                   version: ${{ needs.version-update.outputs.version }}
                   configuration: 'Release'
                   run_tests: 'false'
+                  sentry_dsn: ${{ secrets.SENTRY_DSN }}
 
     build-linux:
         needs: [release-approval, version-update, run-tests]
@@ -287,6 +288,7 @@ jobs:
                   version: ${{ needs.version-update.outputs.version }}
                   configuration: 'Release'
                   run_tests: 'false'
+                  sentry_dsn: ${{ secrets.SENTRY_DSN }}
     
     create-release:
         needs: [release-approval, version-update, build-windows, build-linux]
